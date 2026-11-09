@@ -1,0 +1,6 @@
+init
+vpc
+rds
+cognito-malai-api
+kms
+ecs-malai-api

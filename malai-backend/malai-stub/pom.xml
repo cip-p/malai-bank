@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>malai</groupId>
+        <artifactId>malai-backend</artifactId>
+        <version>DEV-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>malai-stub</artifactId>
+    <name>Malai Stub</name>
+    <!--
+        Separate Spring Boot deployable (not bundled into malai-api). A pure-HTTP
+        impersonation of the outside world — the FPS / SWIFT / BACS scheme APIs.
+        It exposes each scheme's submit/ack and inbound HTTP surface and fires
+        settle/return/inbound callbacks at the per-rail gateways over HTTP.
+        Inter-queue traffic is owned by the gateways; malai-stub only carries
+        the SQS infrastructure transitively so the e2e-tests-profile
+        KensaSqsEventPublisher bean can forward Kensa envelopes for outbound HTTP.
+    -->
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-payments-messages</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-scheme-contracts</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-clients-common</artifactId>
+        </dependency>
+        <!--
+            Brings KensaSqsCaptureConfig (e2e-tests profile only). malai-stub doesn't use SQS
+            itself, but the config provides the KensaEventPublisher bean that AbstractMalaiClient
+            autowires to publish HTTP envelopes for outbound calls (gateway callbacks) onto the
+            Kensa sequence diagram. Without it the publisher falls back to noop.
+        -->
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-sqs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-acceptance-test-commons</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-test-commons</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.neovibrant</groupId>
+            <artifactId>kacey</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

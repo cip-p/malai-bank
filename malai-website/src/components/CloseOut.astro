@@ -1,0 +1,33 @@
+---
+import { closeOut } from "../content/closeout";
+---
+
+<div data-testid="closeout" class="mx-auto max-w-6xl px-6 py-24 sm:py-32">
+  <div class="max-w-3xl border-t border-rule pt-16">
+    <p
+      data-testid="closeout-line"
+      class="text-2xl leading-tight font-semibold tracking-tight text-navy-950 sm:text-3xl"
+    >
+      {closeOut.closingLine}
+    </p>
+    <div class="mt-10 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <a
+        data-testid="closeout-primary-cta"
+        href={closeOut.primaryCta.href}
+        target="_blank"
+        aria-describedby="new-tab-hint"
+        rel="noopener noreferrer"
+        class="inline-flex items-center rounded-md bg-navy-950 px-5 py-3 text-base font-medium text-warm-white transition-colors hover:bg-navy-800 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      >
+        {closeOut.primaryCta.label}
+      </a>
+      <a
+        data-testid="closeout-secondary-cta"
+        href={closeOut.secondaryCta.href}
+        class="inline-flex items-center rounded-md border border-rule bg-warm-white px-5 py-3 text-base font-medium text-navy-950 transition-colors hover:border-navy-700 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      >
+        {closeOut.secondaryCta.label}
+      </a>
+    </div>
+  </div>
+</div>

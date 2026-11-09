@@ -1,0 +1,667 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-16T11:16:24.056Z",
+  "title": "Design System: Malai",
+  "extensions": {
+    "colorMeta": {
+      "espresso-rust": {
+        "role": "primary",
+        "displayName": "Espresso Rust",
+        "tonalRamp": [
+          "oklch(0.15 0.13 40)",
+          "oklch(0.26 0.13 40)",
+          "oklch(0.37 0.13 40)",
+          "oklch(0.48 0.13 40)",
+          "oklch(0.6 0.13 40)",
+          "oklch(0.72 0.13 40)",
+          "oklch(0.84 0.13 40)",
+          "oklch(0.95 0.13 40)"
+        ],
+        "note": "malai primary; PWA theme-color #913814"
+      },
+      "espresso-rust-dark": {
+        "role": "primary",
+        "displayName": "Espresso Rust (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.14 50)",
+          "oklch(0.26 0.14 50)",
+          "oklch(0.37 0.14 50)",
+          "oklch(0.48 0.14 50)",
+          "oklch(0.6 0.14 50)",
+          "oklch(0.72 0.14 50)",
+          "oklch(0.84 0.14 50)",
+          "oklch(0.95 0.14 50)"
+        ]
+      },
+      "deep-harbour-navy": {
+        "role": "primary",
+        "displayName": "Deep Harbour Navy",
+        "tonalRamp": [
+          "oklch(0.15 0.13 255)",
+          "oklch(0.26 0.13 255)",
+          "oklch(0.37 0.13 255)",
+          "oklch(0.48 0.13 255)",
+          "oklch(0.6 0.13 255)",
+          "oklch(0.72 0.13 255)",
+          "oklch(0.84 0.13 255)",
+          "oklch(0.95 0.13 255)"
+        ],
+        "note": "halcyon primary"
+      },
+      "deep-harbour-navy-dark": {
+        "role": "primary",
+        "displayName": "Deep Harbour Navy (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.14 235)",
+          "oklch(0.26 0.14 235)",
+          "oklch(0.37 0.14 235)",
+          "oklch(0.48 0.14 235)",
+          "oklch(0.6 0.14 235)",
+          "oklch(0.72 0.14 235)",
+          "oklch(0.84 0.14 235)",
+          "oklch(0.95 0.14 235)"
+        ]
+      },
+      "linden-forest": {
+        "role": "primary",
+        "displayName": "Linden Forest",
+        "tonalRamp": [
+          "oklch(0.15 0.11 150)",
+          "oklch(0.26 0.11 150)",
+          "oklch(0.37 0.11 150)",
+          "oklch(0.48 0.11 150)",
+          "oklch(0.6 0.11 150)",
+          "oklch(0.72 0.11 150)",
+          "oklch(0.84 0.11 150)",
+          "oklch(0.95 0.11 150)"
+        ],
+        "note": "linden primary"
+      },
+      "linden-forest-dark": {
+        "role": "primary",
+        "displayName": "Linden Forest (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.13 150)",
+          "oklch(0.26 0.13 150)",
+          "oklch(0.37 0.13 150)",
+          "oklch(0.48 0.13 150)",
+          "oklch(0.6 0.13 150)",
+          "oklch(0.72 0.13 150)",
+          "oklch(0.84 0.13 150)",
+          "oklch(0.95 0.13 150)"
+        ]
+      },
+      "cream-paper": {
+        "role": "neutral",
+        "displayName": "Cream Paper",
+        "tonalRamp": [
+          "oklch(0.15 0.012 80)",
+          "oklch(0.26 0.012 80)",
+          "oklch(0.37 0.012 80)",
+          "oklch(0.48 0.012 80)",
+          "oklch(0.6 0.012 80)",
+          "oklch(0.72 0.012 80)",
+          "oklch(0.84 0.012 80)",
+          "oklch(0.95 0.012 80)"
+        ],
+        "note": "--background; PWA background_color #fef9f1"
+      },
+      "cream-paper-dark": {
+        "role": "neutral",
+        "displayName": "Cream Paper (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.018 50)",
+          "oklch(0.26 0.018 50)",
+          "oklch(0.37 0.018 50)",
+          "oklch(0.48 0.018 50)",
+          "oklch(0.6 0.018 50)",
+          "oklch(0.72 0.018 50)",
+          "oklch(0.84 0.018 50)",
+          "oklch(0.95 0.018 50)"
+        ]
+      },
+      "espresso-ink": {
+        "role": "neutral",
+        "displayName": "Espresso Ink",
+        "tonalRamp": [
+          "oklch(0.15 0.028 50)",
+          "oklch(0.26 0.028 50)",
+          "oklch(0.37 0.028 50)",
+          "oklch(0.48 0.028 50)",
+          "oklch(0.6 0.028 50)",
+          "oklch(0.72 0.028 50)",
+          "oklch(0.84 0.028 50)",
+          "oklch(0.95 0.028 50)"
+        ],
+        "note": "--foreground"
+      },
+      "espresso-ink-dark": {
+        "role": "neutral",
+        "displayName": "Espresso Ink (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.012 80)",
+          "oklch(0.26 0.012 80)",
+          "oklch(0.37 0.012 80)",
+          "oklch(0.48 0.012 80)",
+          "oklch(0.6 0.012 80)",
+          "oklch(0.72 0.012 80)",
+          "oklch(0.84 0.012 80)",
+          "oklch(0.95 0.012 80)"
+        ]
+      },
+      "card-white": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.37 0 0)",
+          "oklch(0.48 0 0)",
+          "oklch(0.6 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ],
+        "note": "--card / --popover"
+      },
+      "card-dark": {
+        "role": "neutral",
+        "displayName": "Card White (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.018 50)",
+          "oklch(0.26 0.018 50)",
+          "oklch(0.37 0.018 50)",
+          "oklch(0.48 0.018 50)",
+          "oklch(0.6 0.018 50)",
+          "oklch(0.72 0.018 50)",
+          "oklch(0.84 0.018 50)",
+          "oklch(0.95 0.018 50)"
+        ]
+      },
+      "warm-linen": {
+        "role": "neutral",
+        "displayName": "Warm Linen",
+        "tonalRamp": [
+          "oklch(0.15 0.015 75)",
+          "oklch(0.26 0.015 75)",
+          "oklch(0.37 0.015 75)",
+          "oklch(0.48 0.015 75)",
+          "oklch(0.6 0.015 75)",
+          "oklch(0.72 0.015 75)",
+          "oklch(0.84 0.015 75)",
+          "oklch(0.95 0.015 75)"
+        ],
+        "note": "--muted / --secondary"
+      },
+      "warm-linen-dark": {
+        "role": "neutral",
+        "displayName": "Warm Linen (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.018 50)",
+          "oklch(0.26 0.018 50)",
+          "oklch(0.37 0.018 50)",
+          "oklch(0.48 0.018 50)",
+          "oklch(0.6 0.018 50)",
+          "oklch(0.72 0.018 50)",
+          "oklch(0.84 0.018 50)",
+          "oklch(0.95 0.018 50)"
+        ]
+      },
+      "soft-cocoa": {
+        "role": "neutral",
+        "displayName": "Soft Cocoa",
+        "tonalRamp": [
+          "oklch(0.15 0.025 55)",
+          "oklch(0.26 0.025 55)",
+          "oklch(0.37 0.025 55)",
+          "oklch(0.48 0.025 55)",
+          "oklch(0.6 0.025 55)",
+          "oklch(0.72 0.025 55)",
+          "oklch(0.84 0.025 55)",
+          "oklch(0.95 0.025 55)"
+        ],
+        "note": "--muted-foreground"
+      },
+      "soft-cocoa-dark": {
+        "role": "neutral",
+        "displayName": "Soft Cocoa (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.018 75)",
+          "oklch(0.26 0.018 75)",
+          "oklch(0.37 0.018 75)",
+          "oklch(0.48 0.018 75)",
+          "oklch(0.6 0.018 75)",
+          "oklch(0.72 0.018 75)",
+          "oklch(0.84 0.018 75)",
+          "oklch(0.95 0.018 75)"
+        ]
+      },
+      "apricot-wash": {
+        "role": "neutral",
+        "displayName": "Apricot Wash",
+        "tonalRamp": [
+          "oklch(0.15 0.045 65)",
+          "oklch(0.26 0.045 65)",
+          "oklch(0.37 0.045 65)",
+          "oklch(0.48 0.045 65)",
+          "oklch(0.6 0.045 65)",
+          "oklch(0.72 0.045 65)",
+          "oklch(0.84 0.045 65)",
+          "oklch(0.95 0.045 65)"
+        ],
+        "note": "--accent"
+      },
+      "apricot-wash-dark": {
+        "role": "neutral",
+        "displayName": "Apricot Wash (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.035 55)",
+          "oklch(0.26 0.035 55)",
+          "oklch(0.37 0.035 55)",
+          "oklch(0.48 0.035 55)",
+          "oklch(0.6 0.035 55)",
+          "oklch(0.72 0.035 55)",
+          "oklch(0.84 0.035 55)",
+          "oklch(0.95 0.035 55)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "tonalRamp": [
+          "oklch(0.15 0.018 75)",
+          "oklch(0.26 0.018 75)",
+          "oklch(0.37 0.018 75)",
+          "oklch(0.48 0.018 75)",
+          "oklch(0.6 0.018 75)",
+          "oklch(0.72 0.018 75)",
+          "oklch(0.84 0.018 75)",
+          "oklch(0.95 0.018 75)"
+        ],
+        "note": "--border"
+      },
+      "hairline-dark": {
+        "role": "neutral",
+        "displayName": "Hairline (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.018 50)",
+          "oklch(0.26 0.018 50)",
+          "oklch(0.37 0.018 50)",
+          "oklch(0.48 0.018 50)",
+          "oklch(0.6 0.018 50)",
+          "oklch(0.72 0.018 50)",
+          "oklch(0.84 0.018 50)",
+          "oklch(0.95 0.018 50)"
+        ]
+      },
+      "paper-on-ink": {
+        "role": "neutral",
+        "displayName": "Paper on Ink",
+        "tonalRamp": [
+          "oklch(0.15 0.01 80)",
+          "oklch(0.26 0.01 80)",
+          "oklch(0.37 0.01 80)",
+          "oklch(0.48 0.01 80)",
+          "oklch(0.6 0.01 80)",
+          "oklch(0.72 0.01 80)",
+          "oklch(0.84 0.01 80)",
+          "oklch(0.95 0.01 80)"
+        ],
+        "note": "--primary-foreground"
+      },
+      "brick-refusal": {
+        "role": "semantic",
+        "displayName": "Brick Refusal",
+        "tonalRamp": [
+          "oklch(0.15 0.18 25)",
+          "oklch(0.26 0.18 25)",
+          "oklch(0.37 0.18 25)",
+          "oklch(0.48 0.18 25)",
+          "oklch(0.6 0.18 25)",
+          "oklch(0.72 0.18 25)",
+          "oklch(0.84 0.18 25)",
+          "oklch(0.95 0.18 25)"
+        ],
+        "note": "--destructive and --negative"
+      },
+      "brick-refusal-dark": {
+        "role": "semantic",
+        "displayName": "Brick Refusal (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 25)",
+          "oklch(0.26 0.17 25)",
+          "oklch(0.37 0.17 25)",
+          "oklch(0.48 0.17 25)",
+          "oklch(0.6 0.17 25)",
+          "oklch(0.72 0.17 25)",
+          "oklch(0.84 0.17 25)",
+          "oklch(0.95 0.17 25)"
+        ]
+      },
+      "credit-green": {
+        "role": "semantic",
+        "displayName": "Credit Green",
+        "tonalRamp": [
+          "oklch(0.15 0.13 145)",
+          "oklch(0.26 0.13 145)",
+          "oklch(0.37 0.13 145)",
+          "oklch(0.48 0.13 145)",
+          "oklch(0.6 0.13 145)",
+          "oklch(0.72 0.13 145)",
+          "oklch(0.84 0.13 145)",
+          "oklch(0.95 0.13 145)"
+        ],
+        "note": "--positive"
+      },
+      "credit-green-dark": {
+        "role": "semantic",
+        "displayName": "Credit Green (dark mode)",
+        "tonalRamp": [
+          "oklch(0.15 0.16 145)",
+          "oklch(0.26 0.16 145)",
+          "oklch(0.37 0.16 145)",
+          "oklch(0.48 0.16 145)",
+          "oklch(0.6 0.16 145)",
+          "oklch(0.72 0.16 145)",
+          "oklch(0.84 0.16 145)",
+          "oklch(0.95 0.16 145)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Figures only: the hero available balance, metric tiles, sheet amounts. Never a heading."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Landing-page h1 (Accounts, Exec, auth, paused page on desktop)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Default page h1 and outcome screens; one per page, focusable."
+      },
+      "subtitle": {
+        "displayName": "Subtitle",
+        "purpose": "Dialog and sheet titles."
+      },
+      "figure": {
+        "displayName": "Card figure",
+        "purpose": "The 20px tabular balance on an account card."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "The 16px primary line of a list row and every form control; the browser base."
+      },
+      "supporting": {
+        "displayName": "Supporting",
+        "purpose": "The 14px size for everything around a primary line: descriptions, cells, secondary lines, buttons at 500."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tags, badges, timestamps, tab captions, chip counts."
+      },
+      "eyebrow": {
+        "displayName": "Eyebrow",
+        "purpose": "Uppercase tracked step indicators, date-group labels and the OPS / EXEC header badge."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "10px uppercase captions on card art only."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Ops-surface identifiers and hashes only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "whisper",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Every card and tile at rest; a paper cue, not depth."
+      },
+      {
+        "name": "acknowledge",
+        "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "Clickable card hover, with the border warming to 40% ring colour."
+      },
+      {
+        "name": "held",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Dropdown menus and the bank card art."
+      },
+      {
+        "name": "floating",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "Dialogs and sheets over a 40% black scrim."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "The only easing: success tick strokes and colour transitions."
+      },
+      {
+        "name": "duration-colour",
+        "value": "150ms",
+        "purpose": "Hover and focus colour transitions on controls, rows and nav (motion-safe only)."
+      },
+      {
+        "name": "duration-sheet",
+        "value": "200ms",
+        "purpose": "Transaction sheet slide-in from bottom (mobile) or right (desktop)."
+      },
+      {
+        "name": "duration-tick-circle",
+        "value": "400ms",
+        "purpose": "Success tick ring draw."
+      },
+      {
+        "name": "duration-tick-check",
+        "value": "320ms + 320ms delay",
+        "purpose": "Success tick check draw, after the ring."
+      },
+      {
+        "name": "skeleton-pulse",
+        "value": "animate-pulse on bg-muted/40",
+        "purpose": "Every pending block; never a shimmer."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce lands on the final state",
+        "purpose": "No animation runs unconditionally (ADR-0006 #3)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action that moves money or commits a step. Brand fill, no hover change.",
+      "html": "<button class=\"ds-btn-primary\">Send money</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius); font: 500 14px/1.43 'Inter Variable', ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: default; user-select: none; transition: color 150ms, background-color 150ms, border-color 150ms; background: var(--primary); color: var(--primary-foreground); outline: none; } .ds-btn-primary:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: .5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The secondary action and the user-menu trigger: paper fill, hairline border, linen hover.",
+      "html": "<button class=\"ds-btn-outline\">Back to Current account</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius); font: 500 14px/1.43 'Inter Variable', ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: default; user-select: none; transition: color 150ms, background-color 150ms, border-color 150ms; background: var(--background); color: var(--foreground); border-color: var(--border); outline: none; } .ds-btn-outline:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:disabled { opacity: .5; pointer-events: none; } .ds-btn-outline:hover { background: var(--muted); color: var(--foreground); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Icon buttons and unselected filter chips: transparent, linen on hover.",
+      "html": "<button class=\"ds-btn-ghost\" aria-label=\"Back\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg></button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius); font: 500 14px/1.43 'Inter Variable', ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: default; user-select: none; transition: color 150ms, background-color 150ms, border-color 150ms; background: transparent; color: var(--foreground); width: 32px; padding: 0; outline: none; } .ds-btn-ghost:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-ghost:active { transform: translateY(1px); } .ds-btn-ghost:disabled { opacity: .5; pointer-events: none; } .ds-btn-ghost:hover { background: var(--muted); }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "A 10% Brick Refusal tint with coloured text; never a solid red fill.",
+      "html": "<button class=\"ds-btn-destructive\">Delete payee</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius); font: 500 14px/1.43 'Inter Variable', ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: default; user-select: none; transition: color 150ms, background-color 150ms, border-color 150ms; background: color-mix(in oklab, var(--destructive) 10%, transparent); color: var(--destructive); outline: none; } .ds-btn-destructive:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-destructive:active { transform: translateY(1px); } .ds-btn-destructive:disabled { opacity: .5; pointer-events: none; } .ds-btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 20%, transparent); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Transparent fill, hairline stroke, 32px tall, ring on focus, Brick Refusal on aria-invalid.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Sort code</span><input class=\"ds-input\" placeholder=\"00-00-00\" inputmode=\"numeric\" /></label>",
+      "css": ".ds-field { display: block; } .ds-label { display: flex; margin-bottom: 6px; font: 500 14px/1 'Inter Variable', ui-sans-serif, system-ui, sans-serif; color: var(--foreground); } .ds-input { width: 100%; height: 32px; min-width: 0; padding: 4px 10px; background: transparent; color: var(--foreground); border: 1px solid var(--input); border-radius: var(--radius); font: 400 14px/1.43 'Inter Variable', ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-input[aria-invalid=\"true\"] { border-color: var(--destructive); box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 20%, transparent); } .ds-input:disabled { opacity: .5; cursor: not-allowed; background: color-mix(in oklab, var(--input) 50%, transparent); }"
+    },
+    {
+      "name": "Account Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A clickable card: hairline border, whisper shadow, acknowledges hover with a warmer border and one more shadow step.",
+      "html": "<a class=\"ds-card\" href=\"#\"><span class=\"ds-card-row\"><span class=\"ds-card-main\"><span class=\"ds-card-name\">Current account</span><span class=\"ds-card-sub\">20-00-00 · 12345678</span></span><span class=\"ds-card-amount\">£2,418.40</span></span><span class=\"ds-card-foot\"><span class=\"ds-card-sub\">Pret A Manger</span><span class=\"ds-money\">−£4.85</span></span></a>",
+      "css": ".ds-card { display: block; padding: 16px; background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); text-decoration: none; font: 400 14px/1.43 'Inter Variable', ui-sans-serif, system-ui, sans-serif; outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-card:hover { border-color: color-mix(in oklab, var(--ring) 40%, transparent); box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); } .ds-card:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; } .ds-card-main { min-width: 0; } .ds-card-name { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-card-sub { display: block; margin-top: 4px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; } .ds-card-amount { flex-shrink: 0; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-card-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); } .ds-money { font-weight: 500; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Category Chip",
+      "kind": "chip",
+      "refersTo": "chip-category",
+      "description": "A linen pill with a category dot; 11px cocoa text.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-chip-dot\" style=\"background:#2a78d6\"></span>Eating out</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; background: var(--muted); color: var(--muted-foreground); border-radius: 9999px; font: 500 0.7rem/1.33 'Inter Variable', ui-sans-serif, system-ui, sans-serif; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; }"
+    },
+    {
+      "name": "Status Tag",
+      "kind": "chip",
+      "refersTo": "tag-status",
+      "description": "Ops-surface square tag: tone lives in the border. Dashed means inert; Brick Refusal means a refusal or a report.",
+      "html": "<span class=\"ds-tag\">Investigating</span> <span class=\"ds-tag ds-tag-inert\">Closed · dismissed</span> <span class=\"ds-tag ds-tag-refusal\">Closed · reported</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; padding: 2px 6px; border: 1px solid var(--ring); border-radius: calc(var(--radius) - 4px); color: var(--foreground); font: 500 12px/1.33 'Inter Variable', ui-sans-serif, system-ui, sans-serif; white-space: nowrap; } .ds-tag-inert { border-style: dashed; border-color: var(--border); color: var(--muted-foreground); } .ds-tag-refusal { border-color: color-mix(in oklab, var(--destructive) 40%, transparent); color: var(--destructive); }"
+    },
+    {
+      "name": "Desktop Nav",
+      "kind": "nav",
+      "refersTo": "nav-link-desktop",
+      "description": "Text links under the header; the active one carries a 2px ring-coloured underline and ink text.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><a class=\"ds-nav-link ds-nav-active\" href=\"#\" aria-current=\"page\">Accounts</a><a class=\"ds-nav-link\" href=\"#\">Cards</a><a class=\"ds-nav-link\" href=\"#\">Move money</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 8px; background: var(--background); border-bottom: 1px solid var(--border); padding: 0 24px; } .ds-nav-link { display: inline-flex; align-items: center; height: 40px; padding: 0 12px; border-bottom: 2px solid transparent; color: var(--muted-foreground); font: 500 14px/1 'Inter Variable', ui-sans-serif, system-ui, sans-serif; text-decoration: none; outline: none; transition: color 150ms; } .ds-nav-link:hover { color: var(--foreground); } .ds-nav-link:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-nav-active { border-bottom-color: var(--ring); color: var(--foreground); }"
+    },
+    {
+      "name": "Mobile Tab",
+      "kind": "nav",
+      "refersTo": "tab-mobile",
+      "description": "Bottom-bar tab: cocoa caption, and when active a bold brand caption with the icon filled inside an apricot pill.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Primary\"><a class=\"ds-tab ds-tab-active\" href=\"#\" aria-current=\"page\"><span class=\"ds-tab-pill\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg></span>Accounts</a><a class=\"ds-tab\" href=\"#\"><span class=\"ds-tab-pill\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><line x1=\"2\" x2=\"22\" y1=\"10\" y2=\"10\"/></svg></span>Cards</a></nav>",
+      "css": ".ds-tabs { display: flex; width: 100%; max-width: 360px; background: var(--background); border-top: 1px solid var(--border); } .ds-tab { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 4px; padding: 8px 8px 4px; color: var(--muted-foreground); font: 500 12px/1.33 'Inter Variable', ui-sans-serif, system-ui, sans-serif; text-decoration: none; outline: none; transition: color 150ms; } .ds-tab:focus-visible { box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-tab-pill { display: inline-flex; align-items: center; justify-content: center; height: 28px; min-width: 48px; border-radius: 9999px; } .ds-tab-active { font-weight: 700; color: var(--primary); } .ds-tab-active .ds-tab-pill { background: var(--accent); }"
+    },
+    {
+      "name": "Metric Tile",
+      "kind": "card",
+      "refersTo": "metric-tile",
+      "description": "Exec figure: cocoa label over a 36px tabular number, or an em-dash when the number is not there.",
+      "html": "<div class=\"ds-tile\"><h2 class=\"ds-tile-label\">Payments stopped</h2><p class=\"ds-tile-figure\">£12,566.36</p></div>",
+      "css": ".ds-tile { padding: 24px; background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); min-width: 220px; font-family: 'Inter Variable', ui-sans-serif, system-ui, sans-serif; } .ds-tile-label { margin: 0; font-size: 14px; font-weight: 500; color: var(--muted-foreground); } .ds-tile-figure { margin: 16px 0 0; font-size: 36px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Bank Card",
+      "kind": "custom",
+      "refersTo": "card-art",
+      "description": "The one object in the app: brand gradient, tabular PAN, VELA scheme mark, held shadow.",
+      "html": "<div class=\"ds-bankcard\"><div class=\"ds-bankcard-top\"><span class=\"ds-bankcard-brand\">malai</span><span class=\"ds-bankcard-variant\">Debit</span></div><p class=\"ds-bankcard-pan\"><span>4921</span><span>••••</span><span>••••</span><span>3312</span></p><div class=\"ds-bankcard-foot\"><span class=\"ds-bankcard-name\">A HOLDER</span><span class=\"ds-bankcard-meta\"><span><small>Exp</small>09/29</span><span class=\"ds-bankcard-scheme\">VELA</span></span></div></div>",
+      "css": ".ds-bankcard { position: relative; width: 320px; aspect-ratio: 1.586 / 1; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 16px; background: linear-gradient(to bottom right, var(--primary), var(--primary) 50%, color-mix(in oklab, var(--primary) 75%, transparent)); color: var(--primary-foreground); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); font-family: 'Inter Variable', ui-sans-serif, system-ui, sans-serif; } .ds-bankcard-top { display: flex; justify-content: space-between; align-items: flex-start; } .ds-bankcard-brand { font-size: 14px; font-weight: 600; letter-spacing: -0.025em; } .ds-bankcard-variant { padding: 2px 8px; border-radius: calc(var(--radius) - 2px); background: color-mix(in oklab, var(--primary-foreground) 15%, transparent); font-size: 12px; font-weight: 500; } .ds-bankcard-pan { display: flex; justify-content: space-between; margin: 0; font-size: 18px; font-weight: 500; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; } .ds-bankcard-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; font-size: 12px; } .ds-bankcard-name { font-weight: 500; text-transform: uppercase; letter-spacing: 0.025em; } .ds-bankcard-meta { display: flex; align-items: center; gap: 12px; font-variant-numeric: tabular-nums; } .ds-bankcard-meta small { font-size: 10px; text-transform: uppercase; opacity: .7; margin-right: 4px; } .ds-bankcard-scheme { font-size: 14px; font-weight: 700; font-style: italic; letter-spacing: -0.025em; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Branch Counter",
+    "overview": "Malai looks like a calm, well-run high-street bank. The canvas is warm paper, the ink is espresso, and there is exactly one brand colour, used the way a good bank uses its brand: on the sign above the door, on the card in your hand, and on the button that moves money. Everything else is tone. Rules are hairlines, surfaces sit flat on the page, figures line up in tabular columns. Nothing bounces, nothing glows, and nothing tries to entertain; the system earns trust by being exact.\n\nThe same institution runs the back office. Ops and Exec pin the default malai token set, swap the customer's bottom tabs for a wider container and a text table, and add monospace identifiers and square-cornered status tags. That is the whole difference. Walk from `/` into `/ops` and the type, spacing, borders and controls are the ones you just left; only the density and the vocabulary change. The theme switcher (halcyon, linden) reskins the customer side alone, so the constancy of the back office is a visible fact rather than a claim.\n\nThe look is deliberately not a neon challenger bank (no gradients-as-decoration, no glass, no mascots, no confetti), not a developer dashboard (no dark-by-default admin chrome, no monospace outside identifiers, no sidebars on the customer side), and not a legacy bank portal (no navy-and-grey tables, no tiny type, no dated iconography).",
+    "keyCharacteristics": [
+      "Warm, calm, exact: cream paper, espresso ink, one accent, tabular figures everywhere money or ids appear.",
+      "Flat by default: hairline borders and tone carry structure; a real shadow means the element has left the page.",
+      "One type family (Inter Variable) at one small body size (14px), with weight and tracking doing the hierarchy work.",
+      "Three fictional brands as skins: palette and corner radius change, nothing else does.",
+      "Honesty as a visual rule: an em-dash for an absent number, a dashed panel for an empty or failed state, a refusal rendered as a fact rather than an error."
+    ],
+    "rules": [
+      {
+        "name": "The One Ink Rule",
+        "body": "Each theme has exactly one hue that is not the paper's. It goes on the wordmark, the primary button, the active tab, links and the focus ring, and on nothing decorative. Secondary, muted, accent and border are all mixed from the canvas hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Money Direction Rule",
+        "body": "Credits are Credit Green with a `+`. Debits are plain Espresso Ink with a `−`, never red. Brick Refusal marks a refusal or a destructive action, never a debit.",
+        "section": "colors"
+      },
+      {
+        "name": "The Skins Rule",
+        "body": "A theme changes the palette block and `--radius`. It does not change type, spacing, shadows, iconography or layout. The Ops and Exec surfaces pin the malai block and show no switcher.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Money, sort codes, account numbers, counts, timestamps and identifiers are always `tabular-nums`. Columns of figures must align without effort.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Sizes Rule",
+        "body": "A row's primary line is 16px and everything supporting it is 14px. Do not drift supporting text up to 16px for comfort; the density is the bank. Do not set primaries or inputs below 16px; that is the mobile floor.",
+        "section": "typography"
+      },
+      {
+        "name": "The One H1 Rule",
+        "body": "One h1 per page, 24px by default, 30px on a landing page, `tabIndex={-1}` with no visible outline, and it receives focus on arrival.",
+        "section": "typography"
+      },
+      {
+        "name": "The Off-The-Page Rule",
+        "body": "A Held or Floating shadow is reserved for elements that overlay other content. Nothing in the document flow gets more than Whisper at rest or Acknowledge on hover.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Dashed Panel Rule",
+        "body": "Empty states and request failures are a dashed Hairline border on a hero-radius panel with centred Soft Cocoa body text. No illustration, no colour, no shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every money figure, count, identifier and timestamp in `tabular-nums`, and give credits a leading `+` in Credit Green.",
+      "Do render an absent figure as an em-dash with a screen-reader \"Unavailable\", and a pending one as a pulsing Warm Linen block (`bg-muted/40`).",
+      "Do use the 1px Hairline border and a tonal step for structure; reserve Held and Floating shadows for menus, dialogs, sheets and the bank card.",
+      "Do keep controls at 32px with a pointer and 44px on a coarse pointer (`pointer-coarse:`), with the theme `lg` radius, a 3px 50% ring on focus and a 1px press.",
+      "Do reference colour through the semantic tokens (`bg-primary`, `text-muted-foreground`), never a literal Tailwind hue; the ESLint rule enforces it and the theme switch depends on it.",
+      "Do wrap every animation in `motion-safe:` and give it a reduced-motion fallback that lands on the final state.",
+      "Do give every page one focusable h1 and, on the Ops surface, show an identifier shortened in mono with the full id a copy away.",
+      "Do render empty and failed states as a dashed Hairline panel with centred Soft Cocoa text, and a refusal as a designed inline fact rather than a toast."
+    ],
+    "donts": [
+      "Don't introduce a second hue per theme. Accent, secondary and muted are tints of the paper; the brand colour is the only ink.",
+      "Don't colour a debit red or use Brick Refusal for anything that is not a refusal, an error or a destructive action.",
+      "Don't put a solid red fill on a destructive button; it is a 10% tint with coloured text.",
+      "Don't add a theme switcher, a customer skin or a bottom tab bar to the Ops or Exec surfaces; they pin the malai tokens and use the desktop text nav.",
+      "Don't vary typography per theme, and don't load a second family; Inter Variable is app-wide and the only monospace is for Ops identifiers.",
+      "Don't drift body copy up from 14px, and don't use Display sizes on a heading; the largest type is always a figure.",
+      "Don't use a skeleton shimmer, a zero or a hardcoded value where a real number is missing.",
+      "Don't add hover lift, scale, glow, glassmorphism, decorative gradients, mascots or confetti; the card art's diagonal gradient is the one exception and stays there.",
+      "Don't use a real card-scheme mark or name; the scheme is VELA."
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PrivacyContent from "../components/PrivacyContent.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout title={pageSeo.privacy.title} description={pageSeo.privacy.description}>
+  <PrivacyContent />
+</Layout>

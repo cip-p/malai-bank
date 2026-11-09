@@ -1,0 +1,14 @@
+---
+import Layout from "../layouts/Layout.astro";
+import ExecutiveSection from "../components/ExecutiveSection.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout
+  title={pageSeo.executive.title}
+  description={pageSeo.executive.description}
+>
+  <section id="executive">
+    <ExecutiveSection />
+  </section>
+</Layout>

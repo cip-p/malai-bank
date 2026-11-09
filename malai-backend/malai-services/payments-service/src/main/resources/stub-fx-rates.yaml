@@ -1,0 +1,5 @@
+malai:
+  fx:
+    rates:
+      GBP_EUR: "1.15"
+      GBP_USD: "1.25"

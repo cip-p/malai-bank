@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>malai</groupId>
+        <artifactId>malai-backend</artifactId>
+        <version>DEV-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>malai-seeder</artifactId>
+    <name>Malai Seeder</name>
+    <description>Spring Boot CLI (Picocli) that resets a Malai environment to the canonical demo dataset. Plan 02-15.</description>
+
+    <dependencies>
+
+        <!--
+            The seeder is a Spring Boot CLI (web stack disabled in application.properties). It
+            imports each production service's `*ServiceConfiguration` so it boots the same
+            `@Service` / `JpaRepository` beans the runtime uses — every seeder write hits
+            AuditWriter, MalaiSortCode lint, and the V5 sum-to-zero trigger.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cognitoidentityprovider</artifactId>
+        </dependency>
+
+        <!--
+            Reuse production code. malai-sql ships the Flyway migrations and the
+            *ServiceConfiguration classes carry the per-service @EntityScan +
+            @EnableJpaRepositories. The seeder Application class imports each of
+            those configs directly — no broad com.malai scan.
+        -->
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-sql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>auth-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>account-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>account-holder-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>payee-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>direct-debit-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>standing-order-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>mdr-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-registration-seeder</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

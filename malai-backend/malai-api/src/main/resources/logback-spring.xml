@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Logback config for malai-api.
+
+    Two modes, switched on the active Spring profile:
+
+      - `dev` / `prod` (deployed to ECS): JSON lines via Logstash encoder. CloudWatch
+        Logs ingests the body as a JSON object so we can query in Logs Insights
+        (`fields @timestamp, level, logger_name, message`) without regex parsing,
+        and the `level=ERROR` metric filter (see CloudWatch alarms terraform) hits
+        a structured field instead of grepping a plain string.
+
+      - default (tests, local mvn run): Spring Boot's standard human-readable
+        console layout. Tests assert log output with substring matchers, so JSON
+        would be noise.
+
+    MDC fields are emitted automatically — anything we put on the MDC (request id,
+    user id, etc.) shows up as a top-level JSON key in the log line.
+-->
+<configuration>
+
+    <springProfile name="e2e-tests | dev | prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp>
+                        <fieldName>timestamp</fieldName>
+                        <pattern>yyyy-MM-dd'T'HH:mm:ss.SSSXXX</pattern>
+                        <timeZone>UTC</timeZone>
+                    </timestamp>
+                    <version>
+                        <fieldName>schema_version</fieldName>
+                    </version>
+                    <logLevel>
+                        <fieldName>level</fieldName>
+                    </logLevel>
+                    <loggerName>
+                        <fieldName>logger</fieldName>
+                        <!-- Trim long FQNs to keep log lines manageable. -->
+                        <shortenedLoggerNameLength>40</shortenedLoggerNameLength>
+                    </loggerName>
+                    <threadName>
+                        <fieldName>thread</fieldName>
+                    </threadName>
+                    <message>
+                        <fieldName>message</fieldName>
+                    </message>
+                    <!--
+                        BACK-10 MDC contract (Plan 02-16):
+                          - trace_id, span_id, trace_flags  — OTel Java agent's
+                            logback-mdc-1.0 instrumentation, populated whenever
+                            a trace is active (X-Ray header propagated by the
+                            ADOT collector sidecar — D-2.4).
+                          - userId, accountHolderId         — JwtDecoderFilter
+                            via LoggingUtils.addUserToLoggingContext / ...
+                        Allowlist (not wildcard) so an MDC.put() of an
+                        accidentally-sensitive value can't quietly land in
+                        structured logs. Add new keys here deliberately.
+                    -->
+                    <mdc>
+                        <includeMdcKeyName>trace_id</includeMdcKeyName>
+                        <includeMdcKeyName>span_id</includeMdcKeyName>
+                        <includeMdcKeyName>trace_flags</includeMdcKeyName>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>accountHolderId</includeMdcKeyName>
+                    </mdc>
+                    <!-- StructuredArguments.kv("foo", bar) -> top-level JSON keys. -->
+                    <arguments/>
+                    <stackTrace>
+                        <fieldName>stack_trace</fieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                            <maxLength>4096</maxLength>
+                            <rootCauseFirst>true</rootCauseFirst>
+                        </throwableConverter>
+                    </stackTrace>
+                </providers>
+            </encoder>
+        </appender>
+
+        <!-- Spring's default startup banner is plain text and breaks the JSON pipe;
+             the rest of Spring's noise we keep at INFO. -->
+        <logger name="org.springframework.boot.StartupInfoLogger" level="WARN"/>
+
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!e2e-tests &amp; !dev &amp; !prod">
+        <include resource="org/springframework/boot/logging/logback/base.xml"/>
+    </springProfile>
+
+</configuration>

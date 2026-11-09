@@ -1,0 +1,1 @@
+com.malai.accounts.controller.TransfersController declares a mutating endpoint but no constructor path (direct or via an injected collaborator, depth <= 3) reaches com.malai.security.audit.AuditWriter

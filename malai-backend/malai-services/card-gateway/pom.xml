@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>malai</groupId>
+        <artifactId>malai-backend</artifactId>
+        <version>DEV-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>card-gateway</artifactId>
+    <name>Card Gateway</name>
+    <!--
+        The bank's card-scheme connector. Bridges the external card scheme's HTTP world and
+        card-service's internal decision surface. Its authorisation leg is a deliberate
+        deviation from the per-rail gateway pattern (ADR-0005): the scheme-shaped auth request
+        is decided synchronously — request in, internal card-service call, decision out in the
+        same HTTP response — because real issuer links are synchronous. Dumb and stateless — no
+        decisions, no database; it maps shapes and translates the decision back. Bundled into
+        malai-api in production; runs standalone (this module's Spring Boot app) in cross-stack e2e.
+    -->
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-clients-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-sqs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-card-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-card-messages</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-scheme-contracts</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-acceptance-test-commons</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-test-commons</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-card-client-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.neovibrant</groupId>
+            <artifactId>kacey</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

@@ -1,0 +1,111 @@
+---
+const lastUpdated = "7 June 2026";
+
+const sections = [
+  {
+    heading: "What these terms cover",
+    body: [
+      "These terms apply to anyone who uses this website or the demo webapp linked from it. By browsing the site or opening the webapp you agree to use them in line with what is described below. They are written in plain English on purpose — Malai is a reference platform, not a regulated product, and the terms reflect that.",
+    ],
+  },
+  {
+    heading: "Who Malai is, and isn't",
+    body: [
+      "Malai is a demonstration platform. It is not a bank, does not hold deposits, does not move real money, and is not authorised by the FCA or PRA. Nothing inside the demo webapp creates a banking relationship, a payment account, or any other regulated service. The platform exists so prospective bank operators can evaluate the underlying architecture before commissioning their own.",
+    ],
+  },
+  {
+    heading: "Permitted use of the site",
+    body: [
+      "You can read this website, follow links to the demo webapp, and contact us through the contact link. You may not attempt to interfere with the site, probe it for vulnerabilities outside coordinated disclosure, scrape it at volumes that disrupt service for others, or use it to send unsolicited messages to the maintainer.",
+    ],
+  },
+  {
+    heading: "The demo webapp is illustrative",
+    body: [
+      "Every account, balance, transaction, payee, statement, and audit event inside the demo webapp is generated. It is provided to illustrate the customer journey and the system behind it. Nothing displayed inside the webapp is a financial statement, a transaction record, or a representation that any real account exists. Any resemblance to a real person, account, or institution is coincidental.",
+    ],
+  },
+  {
+    heading: "No financial relationship is created",
+    body: [
+      "Using the demo webapp does not create an account with a bank, does not entitle you to any product, does not transfer any funds, and does not constitute financial advice. If you need a bank account or financial advice, you should approach an authorised provider — a list of authorised firms is available on the FCA's public register.",
+    ],
+  },
+  {
+    heading: "Intellectual property",
+    body: [
+      "The Malai source code, design, copy, and assets are the work of the project maintainer, except where another author or licence is credited inline. You are welcome to read the code in the public repositories under the licence stated there. You may not pass off the platform, its name, or its visual identity as your own.",
+    ],
+  },
+  {
+    heading: "Limitation of liability",
+    body: [
+      "The site and the demo webapp are provided as-is, without warranty of any kind. The maintainer is not liable for losses arising from your use of the site or the demo webapp, except to the extent that liability cannot be excluded under the law of England and Wales. Nothing in these terms attempts to limit liability for fraud, death, or personal injury caused by negligence.",
+    ],
+  },
+  {
+    heading: "Changes to these terms",
+    body: [
+      "These terms may change as the project evolves. The date below shows the last revision. Material changes will be flagged on the site rather than applied silently.",
+    ],
+  },
+  {
+    heading: "Governing law",
+    body: [
+      "These terms and any dispute arising from them are governed by the law of England and Wales, and the courts of England and Wales have non-exclusive jurisdiction.",
+    ],
+  },
+  {
+    heading: "Contact",
+    body: [
+      "Questions about these terms can be sent through the contact link. The maintainer reads every message and aims to reply within five working days.",
+    ],
+  },
+];
+---
+
+<section
+  id="terms"
+  class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 pb-20 sm:pt-24 sm:pb-24"
+>
+  <p class="text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase">
+    Legal
+  </p>
+
+  <h1
+    class="mt-5 max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-navy-950 sm:text-5xl md:text-6xl md:leading-[1.1]"
+  >
+    Terms of use.
+  </h1>
+
+  <p class="mt-6 max-w-2xl text-lg leading-relaxed text-ink-muted sm:text-xl">
+    Malai is a reference platform, not a regulated product. These terms describe
+    what you can and can't do with the site and the demo webapp, and what the
+    demo does and doesn't represent.
+  </p>
+
+  <div class="mt-12 grid max-w-3xl gap-10">
+    {
+      sections.map((section) => (
+        <article>
+          <h2 class="text-xl font-semibold tracking-tight text-navy-950">
+            {section.heading}
+          </h2>
+          <div class="mt-3 grid gap-3 text-base leading-relaxed text-ink">
+            {section.body.map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+          </div>
+        </article>
+      ))
+    }
+  </div>
+
+  <p
+    data-testid="terms-last-updated"
+    class="mt-12 max-w-3xl border-t border-rule pt-6 text-xs text-ink-faint"
+  >
+    Last updated {lastUpdated}.
+  </p>
+</section>

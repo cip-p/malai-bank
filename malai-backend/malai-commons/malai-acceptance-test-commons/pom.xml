@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>malai</groupId>
+        <artifactId>malai-backend</artifactId>
+        <version>DEV-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>malai-acceptance-test-commons</artifactId>
+    <name>Malai Acceptance Test Commons</name>
+    <description>
+        Shared acceptance-test scaffolding for malai services: Kensa BDD base class, WireMock wiring,
+        HTTP-client stub, Cognito JWKS stub, TestId interaction capturing, database truncation, etc.
+        Each service provides only the service-specific bits (app boot function, WireMock party lookup,
+        domain fixture interfaces).
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-archunit-rules</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-test-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-clients-test-support-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>malai</groupId>
+            <artifactId>malai-sql</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.kensa</groupId>
+            <artifactId>kensa-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.kensa</groupId>
+            <artifactId>kensa-core</artifactId>
+            <classifier>hooks</classifier>
+        </dependency>
+        <dependency>
+            <groupId>dev.kensa</groupId>
+            <artifactId>kensa-assertions-kotest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.kensa</groupId>
+            <artifactId>kensa-framework-junit5</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.neovibrant</groupId>
+            <artifactId>kacey</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

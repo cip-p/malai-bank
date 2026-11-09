@@ -1,0 +1,102 @@
+---
+const lastUpdated = "10 August 2026";
+
+const sections = [
+  {
+    heading: "What this notice covers",
+    body: [
+      "This notice describes how Malai handles the small amount of information visitors can send us, and the anonymous usage measurement we run. It covers both the marketing site on this domain and the demo webapp at app.malaibank.com. The demo webapp runs entirely on synthetic data and never receives information about real people.",
+    ],
+  },
+  {
+    heading: "What we collect",
+    body: [
+      "If you send us a message through the contact link, we receive your name, your email address, and the message text. We do not ask for, and do not retain, any financial information, identity documents, or banking credentials.",
+      "Separately, both the marketing site and the demo webapp count page views using Plausible Analytics. That measurement is anonymous and aggregate: it tells us which pages get read and which demo surfaces get explored, and nothing about who read them. We run no advertising scripts and no session-replay tools.",
+    ],
+  },
+  {
+    heading: "What the demo webapp doesn't collect",
+    body: [
+      "The demo webapp shown elsewhere on this project is a reference customer journey populated with generated data. Every account holder, balance, transaction, and audit event you see inside it is synthetic. No real banking data is, has been, or will be loaded into it. Opening an account inside the webapp creates a synthetic profile only — it never becomes a real customer record anywhere.",
+    ],
+  },
+  {
+    heading: "How we use the information you send",
+    body: [
+      "Contact submissions are used only to reply to your message and to keep a short audit trail of the exchange. We do not sell, rent, share with marketers, or otherwise disclose the information you send. It is read by the project maintainer and is not exposed to third parties beyond the email-delivery provider routing the reply.",
+    ],
+  },
+  {
+    heading: "How long we keep it",
+    body: [
+      "Contact submissions are retained for up to twelve months from the date of the last exchange in the conversation, then deleted. You can ask for earlier deletion at any time using the contact link.",
+    ],
+  },
+  {
+    heading: "Your rights",
+    body: [
+      "You can ask us to confirm what information we hold about you, request a copy, correct anything inaccurate, or ask for it to be deleted. Send the request through the contact link; we will respond within thirty days. If you believe we have mishandled your information, you can also raise a complaint with the UK Information Commissioner's Office.",
+    ],
+  },
+  {
+    heading: "Cookies and tracking",
+    body: [
+      "Neither the marketing site nor the demo webapp sets a tracking cookie. Plausible, our analytics provider, is cookieless by design: it records the page address, the site that referred you, and coarse browser and country information worked out from your request, without storing an identifier that follows you between visits or across to other websites. Because nothing is stored on your device and no profile is built, there is no cookie banner to dismiss.",
+      "Inside the demo webapp a recorded page address can include a synthetic account or case reference. Those refer to generated records, so they identify nobody.",
+      "The demo webapp does use a session cookie, strictly for keeping a synthetic visitor signed in to their synthetic account — it carries no personal data and is not used for advertising.",
+    ],
+  },
+  {
+    heading: "Updates to this notice",
+    body: [
+      "This notice may change as the project evolves. The date below shows the last revision. Material changes will be flagged on the site rather than applied silently.",
+    ],
+  },
+];
+---
+
+<section
+  id="privacy"
+  class="mx-auto max-w-6xl scroll-mt-24 px-6 pt-16 pb-20 sm:pt-24 sm:pb-24"
+>
+  <p class="text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase">
+    Legal
+  </p>
+
+  <h1
+    class="mt-5 max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-navy-950 sm:text-5xl md:text-6xl md:leading-[1.1]"
+  >
+    Privacy notice.
+  </h1>
+
+  <p class="mt-6 max-w-2xl text-lg leading-relaxed text-ink-muted sm:text-xl">
+    Malai is a reference platform built on synthetic data. The only personal
+    information this site receives is what you choose to send us through the
+    contact link. This notice explains what happens with it.
+  </p>
+
+  <div class="mt-12 grid max-w-3xl gap-10">
+    {
+      sections.map((section) => (
+        <article>
+          <h2 class="text-xl font-semibold tracking-tight text-navy-950">
+            {section.heading}
+          </h2>
+          <div class="mt-3 grid gap-3 text-base leading-relaxed text-ink">
+            {section.body.map((paragraph) => (
+              <p>{paragraph}</p>
+            ))}
+          </div>
+        </article>
+      ))
+    }
+  </div>
+
+  <p
+    data-testid="privacy-last-updated"
+    class="mt-12 max-w-3xl border-t border-rule pt-6 text-xs text-ink-faint"
+  >
+    Last updated {lastUpdated}.
+  </p>
+</section>

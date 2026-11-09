@@ -1,0 +1,227 @@
+# E2E docker-compose. The in-JVM WireMock on `host.docker.internal:9090`:
+#   - stubs AWS Cognito (SDK endpoint + JWKS)
+#   - reverse-proxies inter-service traffic (`/<service-name>/**` -> malai-api container)
+# so EVERY downstream request passes through it and lands on the Kensa sequence diagram via
+# WireMockInteractionCapturer.
+#
+# Topology — all malai services (auth, account-holder, account, ledger, payee, payments,
+# fps/swift/bacs-gateway) are bundled into the single `malai-api` JVM (the same artifact ECS
+# deploys in dev/prod), so they share one container, one port, one Postgres connection pool,
+# one SQS listener fleet. Each "logical" service is still addressed by its own
+# `/<service-name>/` prefix on WireMock — that's what `MalaiE2ETestContext.toSystemLookup`
+# uses to attribute each captured call to a party on the Kensa diagram — but the proxy
+# target collapses onto `malai-api:8080` after the prefix is stripped.
+#
+# The `extra_hosts: host.docker.internal:host-gateway` line resolves that address on Linux too
+# (GitHub Actions runners), not just on Docker Desktop: `host-gateway` resolves to the Docker
+# host IP, which is where the Maven JVM and its WireMock run.
+#
+# malai-api runs with the `e2e-tests` Spring profile, which activates:
+#   - TestIdServletFilterConfig       — reads X-TestId on inbound, sets TestIdContext
+#   - TestIdHttpClientConfig          — propagates X-TestId on outbound MalaiHttpClient calls
+#   - TestIdAwsSdkInterceptorConfig   — propagates X-TestId on outbound AWS SDK calls (Cognito)
+#   - MalaiSourceAwsSdkInterceptorConfig — adds X-Malai-Source on outbound AWS SDK calls
+#   - MdcTraceIdServletFilterConfig   — puts a trace id on MDC.trace_id for every inbound request,
+#     standing in for the OpenTelemetry agent's logback-mdc instrumentation. No agent runs here,
+#     so without this filter payments-service reads a null MDC.trace_id and persists a null
+#     payments.trace_id — and every trace-scoped read (the Copilot's ledger legs) comes back empty.
+# (Outbound Apache HC calls already carry X-Malai-Source unconditionally, set by
+# AbstractMalaiClient.makeRequest.) This profile is NOT the `acceptance-tests` profile, so it does
+# NOT pull in StubbedTimeService / TestUuidGenerator — services still produce real timestamps and
+# UUIDs in e2e.
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: malai-e2e-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: malai
+      POSTGRES_USER: malai
+      POSTGRES_PASSWORD: malai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U malai"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  malai-api:
+    build:
+      # malai-api/Dockerfile uses `COPY malai-api/target/*-exec.jar app.jar`, so the build
+      # context must be the repo root (one level above this compose file).
+      context: ..
+      dockerfile: malai-api/Dockerfile
+    container_name: malai-e2e-malai-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_PROFILES_ACTIVE: e2e-tests
+      DATABASE_URL: jdbc:postgresql://postgres:5432/malai
+      DATABASE_USERNAME: malai
+      DATABASE_PASSWORD: malai
+      MAL_AWS_COGNITO_CLIENT_ID: e2e-test-client-id
+      MAL_AWS_COGNITO_CLIENT_SECRET: e2e-test-client-secret
+      MAL_AWS_COGNITO_USER_POOL_ID: e2e-test-user-pool-id
+      MAL_AWS_COGNITO_JWT_TOKEN_ISSUER: http://host.docker.internal:9090/identity-provider
+      MAL_CORS_ALLOWED_ORIGINS: http://localhost:5173,https://app.fcd8ayxqr72.com,https://app.malaibank.com
+      # keep it as MALAI_COGNITO_ENDPOINTOVERRIDE, so it matches Spring's relaxed-binding convention
+      MALAI_COGNITO_ENDPOINTOVERRIDE: http://host.docker.internal:9090
+      # Inter-service calls (auth -> account-holder, account -> ledger, payments -> ledger, …)
+      # all loop back to this same JVM. Production code emits Kensa envelopes (AbstractMalaiClient
+      # publishes via KensaSqsEventPublisher) so they render on the diagram without any WireMock
+      # reverse-proxy detour. The WireMock-on-host now only serves Cognito stubs.
+      MAL_ACCOUNT_HOLDER_BASE_URL: http://localhost:8080
+      MAL_ACCOUNT_BASE_URL: http://localhost:8080
+      MAL_LEDGER_BASE_URL: http://localhost:8080
+      MAL_PAYMENTS_BASE_URL: http://localhost:8080
+      MAL_MDR_BASE_URL: http://localhost:8080
+      # Payment screening runs in enforcement mode here, matching the demo environment: a
+      # flagged customer payment parks in REFERRED behind a ledger Hold instead of reaching the
+      # rail, and ReferredPaymentResolver enacts whatever ruling the MDR's gate serves. Only the
+      # single watchlist counterparty (see ScreeningProperties.Watchlist) and payments at or above
+      # 1,000,000 minor units flag, so every other e2e journey is unaffected. The resolver's
+      # cadence is left at its `*/5 * * * * *` default — PaymentScreeningTest polls the payment's
+      # state rather than sleeping, so the sweep interval is a latency budget, not a contract.
+      MAL_PAYMENTS_SCREENING_MODE: ENFORCE
+      # The standing-order executor and direct-debit collection requester are disarmed, the way
+      # the acceptance-test profiles disarm them. Nothing here needs them: StandingOrderTest and
+      # DirectDebitTest both anchor `startDate` a week ahead precisely so the schedulers never
+      # fire. Left armed they fire whatever the registration seeder planted for an earlier test
+      # in the class — the DB is only cleaned per class, not per test — and the resulting
+      # PAYMENT_INITIATED lands in the middle of a later test's audit-sequence assertion.
+      MAL_STANDING_ORDER_EXECUTOR_CRON: "-"
+      MAL_DIRECT_DEBIT_COLLECTION_REQUESTER_CRON: "-"
+      # FPS / SWIFT outbound go straight to the malai-stub container over the compose network.
+      MAL_STUB_BASE_URL: http://malai-stub:9090
+      MAL_FPS_SCHEME_BASE_URL: http://malai-stub:9090
+      MAL_SWIFT_SCHEME_BASE_URL: http://malai-stub:9090
+      MAL_BANK_SORT_CODE: "65-82-37"
+      MAL_BANK_BIC: MALAGB22XXX
+      # Cognito service (client_credentials) — the register orchestrator fetches a service JWT
+      # here and uses it to authenticate to account-holder / account / ledger internal endpoints.
+      # The token endpoint is stubbed by the in-JVM WireMock.
+      MAL_AWS_COGNITO_MALAI_SERVICE_CLIENT_ID: e2e-test-malai-service-client-id
+      MAL_AWS_COGNITO_MALAI_SERVICE_CLIENT_SECRET: e2e-test-malai-service-client-secret
+      MAL_AWS_COGNITO_MALAI_SERVICE_TOKEN_ENDPOINT_URL: http://host.docker.internal:9090/oauth2-service/oauth2/token
+      # payments-service + the gateways drive their command/event queues off real SQS (localstack).
+      spring.cloud.aws.sqs.endpoint: http://localstack:4566
+      # CognitoAdminClient.addUserToGroup uses the AWS SDK's default credentials chain (the
+      # ECS task role in prod). Inside this container there is no ambient credential source,
+      # so the SDK would throw `SdkClientException: Unable to load AWS credentials...` before
+      # the request ever reaches the in-JVM WireMock. Provide test credentials — WireMock
+      # doesn't validate the SigV4 signature, only the X-Amz-Target header. The same credentials
+      # are reused by the SQS client against localstack.
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  malai-stub:
+    build:
+      # Repo root, same as malai-api above: malai-stub/Dockerfile uses
+      # `COPY malai-stub/target/...`, which a `../malai-stub` context cannot see.
+      context: ..
+      dockerfile: malai-stub/Dockerfile
+    container_name: malai-e2e-malai-stub
+    ports:
+      - "9091:9090"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # FPS / SWIFT / BACS outbound leave the stub over HTTP straight to the malai-api container
+      # over the compose network. Each gateway's controller (FpsCallbackController etc.) is bundled
+      # in malai-api at /<rail>/callbacks. Kensa envelopes published by AbstractMalaiClient in the
+      # stub container land on kensa-events.fifo, where the test JVM drains them and renders the
+      # arrows on the sequence diagram.
+      MAL_FPS_GATEWAY_BASE_URL: http://malai-api:8080
+      MAL_SWIFT_GATEWAY_BASE_URL: http://malai-api:8080
+      MAL_BACS_GATEWAY_BASE_URL: http://malai-api:8080
+      # The card scheme's synchronous authorise + async present/reverse/refund webhooks all
+      # target the card-gateway callback controller, bundled in malai-api. Without this the
+      # stub's StubCardGatewayClient falls back to its own container (localhost:8080).
+      MAL_CARD_GATEWAY_BASE_URL: http://malai-api:8080
+      # e2e-tests profile activates TestIdServletFilterConfig, so the X-TestId on a
+      # /demo/inbound/{fps,bacs} call populates TestIdContext and rides the outbound HTTP call
+      # to the gateway, which threads it onto the produced event-received message.
+      SPRING_PROFILES_ACTIVE: e2e-tests
+      # Localstack connection so the e2e-tests-profile KensaSqsEventPublisher can publish
+      # HTTP envelopes for the gateway-callback calls (fps-gateway/swift-gateway/bacs-gateway)
+      # onto kensa-events.fifo. Same shape malai-api uses.
+      spring.cloud.aws.sqs.endpoint: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      MAL_STUB_AMBIENT_PAYROLL_ENABLED: "false"
+      # StubSwiftScheme defaults to a 30s artificial settle delay so demos can
+      # show a real cross-border lag; e2e tests poll for SETTLED with a 30s
+      # ceiling (WithPaymentsDb.thePaymentReachesStateInTheDatabase) so the
+      # default would be marginal. Zero settles immediately — the round-trip is
+      # then bounded only by @SqsListener delivery on the command/event queues.
+      MAL_STUB_SWIFT_SETTLE_DELAY_MILLIS: "0"
+      # The card scheme's presentment delay INVERTS the SWIFT zero-delay convention. SWIFT
+      # settles with no manual trigger, so zero == settle-immediately. A card purchase instead
+      # authorises synchronously and then auto-presents after this delay — so zero would race
+      # the journey-1 assertion that observes the PENDING row BEFORE `present now` settles it
+      # (the auth schedules present(0) on a daemon thread before the purchase call even returns).
+      # A large delay disables auto-presentment for the test's lifetime, making `present now`
+      # (POST /api/v1/sandbox/card-presentments) the deterministic settler the journeys drive.
+      MAL_STUB_CARD_PRESENT_DELAY_MILLIS: "600000"
+    # malai-stub's container image is eclipse-temurin:25-jre-alpine, which doesn't have
+    # bash; use sh's redirection-to-tcp idiom instead of the bash-only </dev/tcp form the
+    # other services use.
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9090 || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  localstack:
+    # Pinned to the same version as start-docker-containers-local.sh and
+    # .github/workflows/malai-backend.yml; bump all three together.
+    image: localstack/localstack:3.8.1
+    container_name: malai-e2e-localstack
+    # Host-published port is 4567 (NOT the Localstack default 4566) so this container
+    # coexists with the local-dev Localstack (port 4566 in start-docker-containers-local.sh).
+    # The malai-stub + malai-api containers reach Localstack via the compose-internal
+    # network at `localstack:4566`.
+    ports:
+      - "4567:4566"
+    # Bounds the blast radius, mirroring the --cpus in start-docker-containers-local.sh:
+    # the local-dev Localstack has wedged under an SQS receive storm before, spinning ~2
+    # cores indefinitely while its health endpoint stopped answering. Uncapped that is enough
+    # to thermally throttle a laptop. SQS-only emulation sits near-idle even under the e2e
+    # listener fleet, so 2 is well clear of what the tests need and only bites on a repeat.
+    cpus: 2
+    environment:
+      # SERVICES restricted to sqs keeps the cold-start fast and avoids pulling the
+      # full localstack image. Mirrors start-docker-containers-local.sh.
+      SERVICES: sqs
+      EAGER_SERVICE_LOADING: "1"
+    # No init hook: queues are created by the applications alone (malai-api runs the
+    # payments-service + gateway QueueProvisioners on startup, malai-stub no longer
+    # touches SQS). The healthcheck only needs the SQS service itself to be answering,
+    # so `docker compose up --wait` blocks until the broker is reachable; malai-api then
+    # creates-if-absent the catalog queues.
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs list-queues >/dev/null 2>&1 || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 30s

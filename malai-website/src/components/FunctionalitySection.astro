@@ -1,0 +1,146 @@
+---
+import type { ImageMetadata } from "astro";
+import { functionality } from "../content/functionality";
+import Screenshot from "./Screenshot.astro";
+
+const { heading, narrative, featured, cards, walkthrough } = functionality;
+
+const screenshotModules = import.meta.glob<{ default: ImageMetadata }>(
+  "../assets/screenshots/*.png",
+  { eager: true },
+);
+
+const screenshotSrc = (file: string): ImageMetadata => {
+  const module = screenshotModules[`../assets/screenshots/${file}`];
+  if (!module) throw new Error(`Missing screenshot asset: ${file}`);
+  return module.default;
+};
+---
+
+<div class="mx-auto max-w-6xl px-6 py-24 sm:py-32">
+  <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+    <header>
+      <h2
+        class="text-3xl leading-tight font-semibold tracking-tight text-navy-950 sm:text-4xl"
+      >
+        {heading}
+      </h2>
+      <p class="mt-6 text-lg leading-relaxed text-ink-muted">
+        {narrative}
+      </p>
+    </header>
+    <div data-testid="featured-screenshot">
+      <Screenshot src={screenshotSrc(featured.file)} alt={featured.alt} />
+      <p class="mt-3 text-sm text-ink-faint">
+        {featured.caption}
+      </p>
+    </div>
+  </div>
+
+  <ul
+    data-testid="capability-grid"
+    class="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+  >
+    {
+      cards.map((card) => (
+        <li
+          data-testid="capability-card"
+          class="flex flex-col rounded-lg border border-rule bg-warm-white p-6 transition-colors hover:border-navy-700"
+        >
+          <h3 class="text-base font-semibold tracking-tight text-navy-950">
+            {card.title}
+          </h3>
+          <p class="mt-3 grow text-sm leading-relaxed text-ink-muted">
+            {card.claim}
+          </p>
+          {card.href ? (
+            <a
+              href={card.href}
+              class="mt-4 inline-flex items-center text-sm font-medium text-accent-600 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+            >
+              {card.proof}
+            </a>
+          ) : (
+            <p class="mt-4 text-sm text-ink-faint">{card.proof}</p>
+          )}
+          {card.screenshot && (
+            <Screenshot
+              src={screenshotSrc(card.screenshot.file)}
+              alt={card.screenshot.alt}
+              sizes="(min-width: 1024px) 30vw, calc(100vw - 5rem)"
+              widths={[320, 640, 960, 1280]}
+              class="mt-4"
+            />
+          )}
+        </li>
+      ))
+    }
+  </ul>
+
+  <section
+    data-testid="walkthrough"
+    aria-labelledby="walkthrough-heading"
+    class="mt-20 rounded-lg border border-rule bg-warm-paper p-8 sm:p-10"
+  >
+    <h3
+      id="walkthrough-heading"
+      class="text-xl font-semibold tracking-tight text-navy-950"
+    >
+      {walkthrough.name}
+    </h3>
+    <ol
+      data-testid="walkthrough-steps"
+      class="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3 lg:grid-cols-6"
+    >
+      {
+        walkthrough.steps.map((step, index) => (
+          <li
+            data-testid="walkthrough-step"
+            class="flex flex-col gap-2 border-l-2 border-rule pl-4 md:border-l-0 md:border-t-2 md:pt-4 md:pl-0"
+          >
+            {step.screenshot && (
+              <Screenshot
+                src={screenshotSrc(step.screenshot.file)}
+                alt={step.screenshot.alt}
+                sizes="(min-width: 768px) 18vw, calc(100vw - 5rem)"
+                widths={[320, 640, 960, 1280]}
+                class="mb-1"
+              />
+            )}
+            <span class="text-xs font-medium tracking-wide text-ink-faint uppercase">
+              Step {index + 1}
+            </span>
+            <h4 class="text-sm font-semibold text-navy-950">{step.step}</h4>
+            <p class="text-sm leading-relaxed text-ink-muted">{step.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+    <a
+      data-testid="walkthrough-cta"
+      href={walkthrough.cta.href}
+      target="_blank"
+      aria-describedby="new-tab-hint"
+      rel="noopener noreferrer"
+      class="mt-8 inline-flex items-center text-sm font-medium text-accent-600 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+    >
+      {walkthrough.cta.label}
+    </a>
+    <p
+      data-testid="walkthrough-evidence"
+      class="mt-4 text-sm leading-relaxed text-ink-muted"
+    >
+      {walkthrough.evidence.text}
+      <a
+        data-testid="walkthrough-evidence-link"
+        href={walkthrough.evidence.href}
+        target="_blank"
+        aria-describedby="new-tab-hint"
+        rel="noopener noreferrer"
+        class="font-medium whitespace-nowrap text-accent-600 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      >
+        {walkthrough.evidence.linkLabel}
+      </a>
+    </p>
+  </section>
+</div>

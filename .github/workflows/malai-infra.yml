@@ -1,0 +1,63 @@
+name: malai-infra
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "malai-infra/**"
+      - ".github/workflows/malai-infra.yml"
+  pull_request:
+    paths:
+      - "malai-infra/**"
+      - ".github/workflows/malai-infra.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: malai-infra
+
+jobs:
+  validate:
+    name: Format and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugin-cache
+      TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.14.9
+          terraform_wrapper: false
+
+      - name: Check formatting
+        run: terraform fmt -recursive -check -diff
+
+      - name: Validate every Terraform unit
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          mapfile -t units < <(find . -type f -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
+          failed=()
+          for unit in "${units[@]}"; do
+            echo "::group::$unit"
+            if (cd "$unit" && terraform init -input=false -backend=false && terraform validate); then
+              echo "::endgroup::"
+            else
+              echo "::endgroup::"
+              echo "::error::terraform validate failed for $unit"
+              failed+=("$unit")
+            fi
+          done
+          echo "Validated ${#units[@]} units, ${#failed[@]} failed."
+          [ "${#failed[@]}" -eq 0 ]

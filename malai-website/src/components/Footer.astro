@@ -1,0 +1,69 @@
+---
+import { footer } from "../content/footer";
+
+const year = new Date().getFullYear();
+---
+
+<footer data-testid="footer" class="mt-24 border-t border-rule bg-warm-paper">
+  <div class="mx-auto max-w-6xl px-6 py-14">
+    <div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div>
+        <div class="flex items-center gap-2 text-navy-950">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 32 32"
+            class="size-4 text-accent-600"
+          >
+            <path
+              fill-rule="evenodd"
+              fill="currentColor"
+              d="M16 3.5 26.5 7.5V15c0 6.8-4.3 11.4-10.5 13.5C9.8 26.4 5.5 21.8 5.5 15V7.5Zm0 7a2.6 2.6 0 0 1 1.1 4.96L18.5 21h-5l1.4-5.54A2.6 2.6 0 0 1 16 10.5Z"
+            ></path>
+          </svg>
+          <span class="text-base font-semibold tracking-tight">Malai</span>
+        </div>
+        <p class="mt-3 max-w-sm text-sm text-ink-muted">
+          {footer.description}
+        </p>
+      </div>
+
+      {
+        footer.columns.map((column) => (
+          <nav aria-label={column.title}>
+            <h2 class="text-xs font-semibold tracking-[0.12em] text-ink-faint uppercase">
+              {column.title}
+            </h2>
+            <ul class="mt-4 space-y-2 text-sm">
+              {column.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    aria-describedby={
+                      link.external ? "new-tab-hint" : undefined
+                    }
+                    rel={link.external ? "noopener noreferrer" : undefined}
+                    class="text-ink hover:text-navy-950"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))
+      }
+    </div>
+
+    <p
+      data-testid="footer-disclosure"
+      class="mt-12 max-w-3xl border-t border-rule pt-6 text-xs leading-relaxed text-ink-muted"
+    >
+      {footer.disclosure}
+    </p>
+
+    <p data-testid="footer-copyright" class="mt-4 text-xs text-ink-faint">
+      © {year} Malai. Demonstration platform — not a regulated entity.
+    </p>
+  </div>
+</footer>

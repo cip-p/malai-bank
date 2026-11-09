@@ -1,0 +1,72 @@
+name: malai-webapp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "malai-webapp/**"
+      - ".github/workflows/malai-webapp.yml"
+  pull_request:
+    paths:
+      - "malai-webapp/**"
+      - ".github/workflows/malai-webapp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: malai-webapp
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: malai-webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run prettier
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verify the generated API client matches openapi.yaml
+        run: npm run openapi:verify
+
+      - name: Build
+        run: npm run build
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: malai-webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test

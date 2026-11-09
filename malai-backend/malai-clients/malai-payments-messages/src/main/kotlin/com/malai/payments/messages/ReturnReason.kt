@@ -1,0 +1,10 @@
+package com.malai.payments.messages
+
+enum class ReturnReason {
+    ACCOUNT_CLOSED,
+    ACCOUNT_NAME_MISMATCH,
+    RECIPIENT_BANK_UNAVAILABLE,
+    BENEFICIARY_DECEASED,
+    INVALID_ACCOUNT,
+    INSUFFICIENT_FUNDS,
+}

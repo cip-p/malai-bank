@@ -1,0 +1,3 @@
+#
+#Mon May 11 10:36:29 BST 2026
+classes\ that\ declare\ a\ @PostMapping/@PutMapping/@PatchMapping/@DeleteMapping\ method\ should\ reach\ AuditWriter\ via\ the\ constructor\ (transitively,\ depth\ <\=\ 3),\ because\ BACK-05\ /\ D-2.11\:\ every\ mutating\ endpoint\ must\ have\ access\ to\ the\ audit\ log\ via\ its\ bean\ graph=e3177354-5dfa-46c9-8d70-d345e8664577

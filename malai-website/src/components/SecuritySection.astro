@@ -1,0 +1,183 @@
+---
+import { security } from "../content/security";
+import type { TrustCategoryId } from "../content/security";
+
+const { heading, narrative, stats, categories, trustLedger } = security;
+
+const entriesByCategory = categories.map((category) => ({
+  ...category,
+  entries: trustLedger.filter((entry) => entry.category === category.id),
+}));
+
+const categoryIconPaths: Record<TrustCategoryId, string> = {
+  identity:
+    "M12 2.25a.75.75 0 0 1 .53.22l7.5 3a.75.75 0 0 1 .47.7v5.08c0 5.18-3.6 9.62-8 10.5-4.4-.88-8-5.32-8-10.5V6.17a.75.75 0 0 1 .47-.7l7.5-3a.75.75 0 0 1 .53-.22Z M9.75 12.5l1.75 1.75 3.5-3.5",
+  data: "M4 7c0-1.66 3.58-3 8-3s8 1.34 8 3v10c0 1.66-3.58 3-8 3s-8-1.34-8-3V7Z M4 7c0 1.66 3.58 3 8 3s8-1.34 8-3 M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3",
+  edge: "M12 2.25c5.385 0 9.75 4.365 9.75 9.75S17.385 21.75 12 21.75 2.25 17.385 2.25 12 6.615 2.25 12 2.25Z M2.25 12h19.5 M12 2.25a14.25 14.25 0 0 1 0 19.5 M12 2.25a14.25 14.25 0 0 0 0 19.5",
+  operations: "M9.75 17 5 12.25l1.41-1.41 3.34 3.33 7.84-7.84L19 7.75 9.75 17Z",
+};
+---
+
+<div class="bg-warm-white">
+  <div class="mx-auto max-w-6xl px-6 pt-20 pb-12 sm:pt-28">
+    <header class="max-w-3xl">
+      <p
+        class="text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase"
+      >
+        Security
+      </p>
+      <h1
+        class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-navy-950 sm:text-4xl"
+      >
+        {heading}
+      </h1>
+      <p class="mt-6 text-lg leading-relaxed text-ink-muted">
+        {narrative}
+      </p>
+    </header>
+
+    <dl
+      data-testid="trust-stats"
+      class="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule sm:grid-cols-4"
+    >
+      {
+        stats.map((stat) => (
+          <div
+            data-testid="trust-stat"
+            class="flex flex-col gap-1 bg-warm-white px-5 py-6"
+          >
+            <dt class="text-xs leading-snug font-medium tracking-wide text-ink-muted uppercase">
+              {stat.label}
+            </dt>
+            <dd class="font-mono text-lg leading-tight font-semibold text-navy-950 sm:text-xl">
+              {stat.value}
+            </dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+
+  <div data-testid="trust-ledger" class="mx-auto max-w-6xl px-6 pb-24 sm:pb-32">
+    {
+      entriesByCategory.map((category) => (
+        <section
+          data-testid="trust-category"
+          data-category-id={category.id}
+          class="mt-16 first:mt-12"
+        >
+          <header class="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-8">
+            <div class="md:col-span-4">
+              <div class="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent-50 text-accent-700"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-5 w-5"
+                  >
+                    <path d={categoryIconPaths[category.id]} />
+                  </svg>
+                </span>
+                <h2 class="text-base font-semibold tracking-tight text-navy-950 uppercase">
+                  {category.label}
+                </h2>
+              </div>
+              <p class="mt-3 text-sm leading-relaxed text-ink-muted">
+                {category.blurb}
+              </p>
+            </div>
+            <div class="hidden md:col-span-8 md:block">
+              <div class="h-px w-full translate-y-4 bg-rule" />
+            </div>
+          </header>
+
+          <ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+            {category.entries.map((entry) => (
+              <li
+                data-testid="trust-ledger-entry"
+                data-category-id={entry.category}
+                class="flex h-full flex-col rounded-lg border border-rule bg-warm-paper p-6 transition-colors hover:border-navy-700"
+              >
+                <h3
+                  data-testid="trust-claim"
+                  class="text-base font-semibold tracking-tight text-navy-950"
+                >
+                  {entry.claim}
+                </h3>
+                <p
+                  data-testid="trust-detail"
+                  class="mt-3 text-sm leading-relaxed text-ink"
+                >
+                  {entry.detail}
+                </p>
+
+                <div class="mt-5 border-t border-rule pt-4">
+                  {entry.evidence.kind === "note" && (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        class="mb-1 block text-[10px] font-semibold tracking-[0.14em] text-ink-muted uppercase"
+                      >
+                        Note
+                      </span>
+                      <p
+                        data-testid="trust-evidence"
+                        data-evidence-kind="note"
+                        class="text-xs leading-relaxed text-ink-faint"
+                      >
+                        {entry.evidence.text}
+                      </p>
+                    </>
+                  )}
+                  {entry.evidence.kind === "link" && (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        class="mb-1 block text-[10px] font-semibold tracking-[0.14em] text-ink-muted uppercase"
+                      >
+                        Reference
+                      </span>
+                      <a
+                        data-testid="trust-evidence"
+                        data-evidence-kind="link"
+                        href={entry.evidence.href}
+                        rel="noopener"
+                        class="inline-flex items-center text-xs font-medium text-accent-600 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+                      >
+                        {entry.evidence.text}
+                      </a>
+                    </>
+                  )}
+                  {entry.evidence.kind === "placeholder" && (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        class="mb-1 block text-[10px] font-semibold tracking-[0.14em] text-ink-muted uppercase"
+                      >
+                        Pending evidence
+                      </span>
+                      <p
+                        data-testid="trust-evidence"
+                        data-evidence-kind="placeholder"
+                        class="text-xs leading-relaxed text-ink-faint italic"
+                      >
+                        {entry.evidence.text}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+</div>

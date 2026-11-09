@@ -1,0 +1,93 @@
+name: malai-website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "malai-website/**"
+      - ".github/workflows/malai-website.yml"
+  pull_request:
+    paths:
+      - "malai-website/**"
+      - ".github/workflows/malai-website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: malai-website
+
+env:
+  ASTRO_TELEMETRY_DISABLED: 1
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: malai-website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run prettier
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Check for forbidden terms
+        run: npm run lint:forbidden
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+
+  smoke-tests:
+    name: Smoke tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: malai-website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install the Playwright browser
+        run: npm run test:e2e:install
+
+      - name: Build
+        run: npm run build
+
+      - name: Run Playwright smoke specs against the built site
+        run: npm run test:e2e
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: malai-website/test-results/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,46 @@
+---
+import { hero } from "../content/hero";
+---
+
+<section
+  data-hero
+  class="relative isolate overflow-hidden border-b border-rule"
+>
+  <div
+    data-testid="hero"
+    class="mx-auto max-w-6xl px-6 pt-16 pb-24 sm:pt-24 sm:pb-32"
+  >
+    {
+      hero.eyebrow && (
+        <p class="mb-6 text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase">
+          {hero.eyebrow}
+        </p>
+      )
+    }
+    <h1
+      class="max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-navy-950 sm:text-5xl md:text-6xl md:leading-[1.1]"
+    >
+      {hero.headline}
+    </h1>
+    <p class="mt-8 max-w-2xl text-lg leading-relaxed text-ink-muted sm:text-xl">
+      {hero.subhead}
+    </p>
+    <div class="mt-10 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <a
+        href={hero.primaryCta.href}
+        target="_blank"
+        aria-describedby="new-tab-hint"
+        rel="noopener noreferrer"
+        class="inline-flex items-center rounded-md bg-navy-950 px-5 py-3 text-base font-medium text-warm-white transition-colors hover:bg-navy-800 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      >
+        {hero.primaryCta.label}
+      </a>
+      <a
+        href={hero.secondaryCta.href}
+        class="inline-flex items-center rounded-md border border-rule bg-warm-white px-5 py-3 text-base font-medium text-navy-950 transition-colors hover:border-navy-700 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      >
+        {hero.secondaryCta.label}
+      </a>
+    </div>
+  </div>
+</section>

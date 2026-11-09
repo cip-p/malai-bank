@@ -1,0 +1,15 @@
+target
+classes
+*.iml
+out
+
+logs
+*.log
+
+.idea
+
+todos.txt
+todos.md
+
+scheduled_tasks.lock
+.DS_Store

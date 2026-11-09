@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: malai-stub
+  main:
+    web-application-type: servlet
+  config:
+    import:
+      - "classpath:stub-fictional-directory.yaml"
+      - "classpath:stub-ambient-payroll.yaml"
+      - "classpath:stub-card-merchants.yaml"
+
+server:
+  port: 9090
+  shutdown: graceful
+
+malai:
+  fps-gateway:
+    base-url: ${MAL_FPS_GATEWAY_BASE_URL:http://localhost:8080}
+  swift-gateway:
+    base-url: ${MAL_SWIFT_GATEWAY_BASE_URL:http://localhost:8080}
+  bacs-gateway:
+    base-url: ${MAL_BACS_GATEWAY_BASE_URL:http://localhost:8080}
+  card-gateway:
+    base-url: ${MAL_CARD_GATEWAY_BASE_URL:http://localhost:8080}
+  stub:
+    swift:
+      settle-delay-millis: ${MAL_STUB_SWIFT_SETTLE_DELAY_MILLIS:30000}
+    card:
+      present-delay-millis: ${MAL_STUB_CARD_PRESENT_DELAY_MILLIS:30000}
+    ambient:
+      payroll:
+        enabled: ${MAL_STUB_AMBIENT_PAYROLL_ENABLED:false}
+        cron: ${MAL_STUB_AMBIENT_PAYROLL_CRON:0 0 9 * * *}
+      card:
+        enabled: ${MAL_STUB_AMBIENT_CARD_ENABLED:false}
+        cron: ${MAL_STUB_AMBIENT_CARD_CRON:0 0 * * * *}

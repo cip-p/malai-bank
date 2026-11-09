@@ -1,0 +1,14 @@
+---
+import Layout from "../layouts/Layout.astro";
+import SecuritySection from "../components/SecuritySection.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout
+  title={pageSeo.security.title}
+  description={pageSeo.security.description}
+>
+  <section id="security">
+    <SecuritySection />
+  </section>
+</Layout>

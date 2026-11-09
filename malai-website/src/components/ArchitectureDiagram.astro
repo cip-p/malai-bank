@@ -1,0 +1,780 @@
+---
+import { architecture } from "../content/architecture";
+
+const { diagram } = architecture;
+---
+
+<div class="block h-auto w-full">
+  <svg
+    data-testid="architecture-diagram"
+    data-diagram-variant="v1"
+    viewBox="0 0 1000 720"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-labelledby="architecture-diagram-title architecture-diagram-desc"
+    class="hidden h-auto w-full text-ink sm:block"
+    font-family="inherit"
+  >
+    <title id="architecture-diagram-title">{diagram.title}</title>
+    <desc id="architecture-diagram-desc">{diagram.description}</desc>
+
+    <defs>
+      <marker
+        id="arrow-sync-desktop"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <path d="M0,0 L7,4 L0,8 z" fill="currentColor"></path>
+      </marker>
+      <marker
+        id="arrow-async-desktop"
+        markerWidth="8"
+        markerHeight="8"
+        refX="7"
+        refY="4"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <path d="M0,0 L7,4 L0,8 z" fill="var(--color-accent-600)"></path>
+      </marker>
+    </defs>
+
+    <rect
+      x="80"
+      y="20"
+      width="840"
+      height="90"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="500"
+      y="42"
+      text-anchor="middle"
+      font-size="12"
+      font-weight="600"
+      fill="currentColor"
+      letter-spacing="0.1em">EXTERNAL RAILS</text
+    >
+
+    <g fill="var(--color-warm-white)" stroke="currentColor" stroke-width="1">
+      <rect x="115" y="58" width="115" height="36" rx="6"></rect>
+      <rect x="246" y="58" width="115" height="36" rx="6"></rect>
+      <rect x="377" y="58" width="115" height="36" rx="6"></rect>
+      <rect x="508" y="58" width="115" height="36" rx="6"></rect>
+      <rect x="639" y="58" width="115" height="36" rx="6"></rect>
+      <rect x="770" y="58" width="115" height="36" rx="6"></rect>
+    </g>
+    <g
+      text-anchor="middle"
+      font-size="14"
+      font-weight="500"
+      fill="currentColor"
+    >
+      <text x="172.5" y="82">FPS</text>
+      <text x="303.5" y="82">BACS</text>
+      <text x="434.5" y="82">SWIFT</text>
+      <text x="565.5" y="82">CoP</text>
+      <text x="696.5" y="82">Cards</text>
+      <text x="827.5" y="82">Ledger</text>
+    </g>
+
+    <line
+      x1="500"
+      y1="110"
+      x2="500"
+      y2="143"
+      stroke="currentColor"
+      stroke-width="1.5"
+      marker-end="url(#arrow-sync-desktop)"></line>
+
+    <rect
+      x="300"
+      y="145"
+      width="400"
+      height="50"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="500"
+      y="177"
+      text-anchor="middle"
+      font-size="16"
+      font-weight="500"
+      fill="currentColor">Edge / TLS termination</text
+    >
+
+    <line
+      x1="500"
+      y1="195"
+      x2="500"
+      y2="233"
+      stroke="currentColor"
+      stroke-width="1.5"
+      marker-end="url(#arrow-sync-desktop)"></line>
+
+    <rect
+      x="300"
+      y="235"
+      width="400"
+      height="50"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="500"
+      y="267"
+      text-anchor="middle"
+      font-size="16"
+      font-weight="500"
+      fill="currentColor">API gateway</text
+    >
+
+    <rect
+      x="740"
+      y="235"
+      width="180"
+      height="50"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="830"
+      y="267"
+      text-anchor="middle"
+      font-size="16"
+      font-weight="500"
+      fill="currentColor">Identity</text
+    >
+
+    <line
+      x1="700"
+      y1="260"
+      x2="738"
+      y2="260"
+      stroke="currentColor"
+      stroke-width="1.5"
+      marker-end="url(#arrow-sync-desktop)"></line>
+
+    <path
+      d="M 500 285 L 500 305 L 175 305 L 175 333"
+      stroke="currentColor"
+      stroke-width="1.5"
+      fill="none"
+      marker-end="url(#arrow-sync-desktop)"></path>
+    <path
+      d="M 500 285 L 500 305 L 392 305 L 392 333"
+      stroke="currentColor"
+      stroke-width="1.5"
+      fill="none"
+      marker-end="url(#arrow-sync-desktop)"></path>
+    <path
+      d="M 500 285 L 500 305 L 608 305 L 608 333"
+      stroke="currentColor"
+      stroke-width="1.5"
+      fill="none"
+      marker-end="url(#arrow-sync-desktop)"></path>
+    <path
+      d="M 500 285 L 500 305 L 825 305 L 825 333"
+      stroke="currentColor"
+      stroke-width="1.5"
+      fill="none"
+      marker-end="url(#arrow-sync-desktop)"></path>
+
+    <rect
+      x="80"
+      y="335"
+      width="190"
+      height="60"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="175"
+      y="371"
+      text-anchor="middle"
+      font-size="15"
+      font-weight="500"
+      fill="currentColor">Account domain</text
+    >
+
+    <rect
+      x="297"
+      y="335"
+      width="190"
+      height="60"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="392"
+      y="371"
+      text-anchor="middle"
+      font-size="15"
+      font-weight="500"
+      fill="currentColor">Cards domain</text
+    >
+
+    <rect
+      x="513"
+      y="335"
+      width="190"
+      height="60"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="608"
+      y="371"
+      text-anchor="middle"
+      font-size="15"
+      font-weight="500"
+      fill="currentColor">Payments domain</text
+    >
+
+    <rect
+      x="730"
+      y="335"
+      width="190"
+      height="60"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="825"
+      y="371"
+      text-anchor="middle"
+      font-size="15"
+      font-weight="500"
+      fill="currentColor">Audit domain</text
+    >
+
+    <line
+      x1="175"
+      y1="395"
+      x2="175"
+      y2="448"
+      stroke="currentColor"
+      stroke-width="1.5"
+      marker-end="url(#arrow-sync-desktop)"></line>
+    <line
+      x1="825"
+      y1="395"
+      x2="825"
+      y2="448"
+      stroke="currentColor"
+      stroke-width="1.5"
+      marker-end="url(#arrow-sync-desktop)"></line>
+
+    <path
+      d="M 250 395 L 250 428 L 420 428 L 420 448"
+      stroke="var(--color-accent-600)"
+      stroke-width="1.5"
+      stroke-dasharray="5 4"
+      fill="none"
+      marker-end="url(#arrow-async-desktop)"></path>
+    <path
+      d="M 392 395 L 392 415 L 460 415 L 460 448"
+      stroke="var(--color-accent-600)"
+      stroke-width="1.5"
+      stroke-dasharray="5 4"
+      fill="none"
+      marker-end="url(#arrow-async-desktop)"></path>
+    <path
+      d="M 608 395 L 608 418 L 555 418 L 555 448"
+      stroke="var(--color-accent-600)"
+      stroke-width="1.5"
+      stroke-dasharray="5 4"
+      fill="none"
+      marker-end="url(#arrow-async-desktop)"></path>
+    <path
+      d="M 750 395 L 750 430 L 585 430 L 585 448"
+      stroke="var(--color-accent-600)"
+      stroke-width="1.5"
+      stroke-dasharray="5 4"
+      fill="none"
+      marker-end="url(#arrow-async-desktop)"></path>
+
+    <rect
+      x="80"
+      y="450"
+      width="220"
+      height="70"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="190"
+      y="491"
+      text-anchor="middle"
+      font-size="16"
+      font-weight="500"
+      fill="currentColor">Managed database</text
+    >
+
+    <rect
+      x="390"
+      y="450"
+      width="220"
+      height="70"
+      rx="8"
+      fill="var(--color-accent-50)"
+      stroke="var(--color-accent-600)"
+      stroke-width="1.6"></rect>
+    <text
+      x="500"
+      y="491"
+      text-anchor="middle"
+      font-size="16"
+      font-weight="600"
+      fill="var(--color-accent-700)">Event bus</text
+    >
+
+    <rect
+      x="700"
+      y="450"
+      width="220"
+      height="70"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.2"></rect>
+    <text
+      x="810"
+      y="491"
+      text-anchor="middle"
+      font-size="16"
+      font-weight="500"
+      fill="currentColor">Managed object store</text
+    >
+
+    <rect
+      x="80"
+      y="600"
+      width="840"
+      height="100"
+      rx="8"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="0.8"
+      stroke-dasharray="3 5"></rect>
+    <text
+      x="100"
+      y="624"
+      font-size="12"
+      font-weight="600"
+      letter-spacing="0.1em"
+      fill="currentColor">LEGEND</text
+    >
+
+    <line
+      x1="120"
+      y1="660"
+      x2="200"
+      y2="660"
+      stroke="currentColor"
+      stroke-width="1.5"
+      marker-end="url(#arrow-sync-desktop)"></line>
+    <text x="220" y="665" font-size="14" fill="currentColor"
+      >Synchronous request</text
+    >
+
+    <line
+      x1="500"
+      y1="660"
+      x2="580"
+      y2="660"
+      stroke="var(--color-accent-600)"
+      stroke-width="1.5"
+      stroke-dasharray="5 4"
+      marker-end="url(#arrow-async-desktop)"></line>
+    <text x="600" y="665" font-size="14" fill="currentColor"
+      >Asynchronous event</text
+    >
+  </svg>
+
+  <svg
+    data-testid="architecture-diagram-mobile"
+    data-diagram-variant="v1-mobile"
+    viewBox="0 0 400 1270"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-labelledby="architecture-diagram-mobile-title architecture-diagram-mobile-desc"
+    class="block h-auto w-full text-ink sm:hidden"
+    font-family="inherit"
+  >
+    <title id="architecture-diagram-mobile-title">{diagram.title}</title>
+    <desc id="architecture-diagram-mobile-desc">{diagram.description}</desc>
+
+    <defs>
+      <marker
+        id="arrow-sync-mobile"
+        markerWidth="7"
+        markerHeight="7"
+        refX="6"
+        refY="3.5"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <path d="M0,0 L6,3.5 L0,7 z" fill="currentColor"></path>
+      </marker>
+      <marker
+        id="arrow-async-mobile"
+        markerWidth="7"
+        markerHeight="7"
+        refX="6"
+        refY="3.5"
+        orient="auto"
+        markerUnits="strokeWidth"
+      >
+        <path d="M0,0 L6,3.5 L0,7 z" fill="var(--color-accent-600)"></path>
+      </marker>
+    </defs>
+
+    <rect
+      x="20"
+      y="20"
+      width="360"
+      height="86"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="47"
+      text-anchor="middle"
+      font-size="13"
+      font-weight="600"
+      fill="currentColor"
+      letter-spacing="0.08em">EXTERNAL RAILS</text
+    >
+    <text
+      x="200"
+      y="82"
+      text-anchor="middle"
+      font-size="15"
+      font-weight="500"
+      fill="currentColor">FPS · BACS · SWIFT · CoP · Cards · Ledger</text
+    >
+
+    <line
+      x1="200"
+      y1="106"
+      x2="200"
+      y2="139"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="141"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="178"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Edge / TLS termination</text
+    >
+
+    <line
+      x1="200"
+      y1="201"
+      x2="200"
+      y2="229"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="231"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="268"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">API gateway</text
+    >
+
+    <line
+      x1="200"
+      y1="291"
+      x2="200"
+      y2="319"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="321"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="358"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Identity</text
+    >
+
+    <line
+      x1="200"
+      y1="381"
+      x2="200"
+      y2="409"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="411"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="448"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Account domain</text
+    >
+
+    <line
+      x1="200"
+      y1="471"
+      x2="200"
+      y2="499"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="501"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="538"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Cards domain</text
+    >
+
+    <line
+      x1="200"
+      y1="561"
+      x2="200"
+      y2="589"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="591"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="628"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Payments domain</text
+    >
+
+    <line
+      x1="200"
+      y1="651"
+      x2="200"
+      y2="679"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+
+    <rect
+      x="20"
+      y="681"
+      width="360"
+      height="60"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="718"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Audit domain</text
+    >
+
+    <line
+      x1="160"
+      y1="741"
+      x2="160"
+      y2="789"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+    <line
+      x1="240"
+      y1="741"
+      x2="240"
+      y2="789"
+      stroke="var(--color-accent-600)"
+      stroke-width="2"
+      stroke-dasharray="6 5"
+      marker-end="url(#arrow-async-mobile)"></line>
+
+    <rect
+      x="20"
+      y="791"
+      width="360"
+      height="70"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="832"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Managed database</text
+    >
+
+    <rect
+      x="20"
+      y="881"
+      width="360"
+      height="70"
+      rx="10"
+      fill="var(--color-accent-50)"
+      stroke="var(--color-accent-600)"
+      stroke-width="2"></rect>
+    <text
+      x="200"
+      y="922"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="600"
+      fill="var(--color-accent-700)">Event bus</text
+    >
+
+    <rect
+      x="20"
+      y="971"
+      width="360"
+      height="70"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1.5"></rect>
+    <text
+      x="200"
+      y="1012"
+      text-anchor="middle"
+      font-size="18"
+      font-weight="500"
+      fill="currentColor">Managed object store</text
+    >
+
+    <rect
+      x="20"
+      y="1075"
+      width="360"
+      height="175"
+      rx="10"
+      fill="var(--color-warm-white)"
+      stroke="currentColor"
+      stroke-width="1"
+      stroke-dasharray="3 5"></rect>
+    <text
+      x="40"
+      y="1105"
+      font-size="13"
+      font-weight="600"
+      letter-spacing="0.08em"
+      fill="currentColor">LEGEND</text
+    >
+
+    <line
+      x1="40"
+      y1="1148"
+      x2="120"
+      y2="1148"
+      stroke="currentColor"
+      stroke-width="2"
+      marker-end="url(#arrow-sync-mobile)"></line>
+    <text x="140" y="1153" font-size="16" fill="currentColor"
+      >Synchronous request</text
+    >
+
+    <line
+      x1="40"
+      y1="1202"
+      x2="120"
+      y2="1202"
+      stroke="var(--color-accent-600)"
+      stroke-width="2"
+      stroke-dasharray="6 5"
+      marker-end="url(#arrow-async-mobile)"></line>
+    <text x="140" y="1207" font-size="16" fill="currentColor"
+      >Asynchronous event</text
+    >
+  </svg>
+</div>

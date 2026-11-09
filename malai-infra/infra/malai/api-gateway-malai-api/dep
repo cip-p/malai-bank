@@ -1,0 +1,6 @@
+init
+dns
+vpc
+cognito-malai-api
+ecs-malai-api
+kms

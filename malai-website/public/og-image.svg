@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0a0a0a" />
+  <g transform="translate(80 72) scale(2.2)">
+    <path fill-rule="evenodd" fill="#ffffff" d="M16 3.5 26.5 7.5V15c0 6.8-4.3 11.4-10.5 13.5C9.8 26.4 5.5 21.8 5.5 15V7.5Zm0 7a2.6 2.6 0 0 1 1.1 4.96L18.5 21h-5l1.4-5.54A2.6 2.6 0 0 1 16 10.5Z" />
+  </g>
+  <text x="80" y="280" fill="#ffffff" font-family="Inter, system-ui, sans-serif" font-size="84" font-weight="600" letter-spacing="-2">A modern UK retail bank,</text>
+  <text x="80" y="380" fill="#ffffff" font-family="Inter, system-ui, sans-serif" font-size="84" font-weight="600" letter-spacing="-2">end to end.</text>
+  <text x="80" y="520" fill="#a3a3a3" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="400">Malai — a working reference platform</text>
+</svg>

@@ -1,0 +1,3 @@
+package com.malai.commons.exception
+
+interface BusinessExceptionWhichShouldNotBeLogged

@@ -1,0 +1,19 @@
+[
+  "AWS",
+  "Amazon",
+  "ECS",
+  "Fargate",
+  "RDS",
+  "S3",
+  "CloudFront",
+  "MalaiBank",
+  "malai-api",
+  "malai-webapp",
+  "account-service",
+  "account-holder-service",
+  "payee-service",
+  "direct-debit-service",
+  "standing-order-service",
+  "profile-service",
+  "auth-service"
+]

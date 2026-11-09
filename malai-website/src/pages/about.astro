@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import AboutHero from "../components/AboutHero.astro";
+import OriginStory from "../components/OriginStory.astro";
+import WorkingPrinciples from "../components/WorkingPrinciples.astro";
+import NextSteps from "../components/NextSteps.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout title={pageSeo.about.title} description={pageSeo.about.description}>
+  <AboutHero />
+  <OriginStory />
+  <WorkingPrinciples />
+  <NextSteps />
+</Layout>

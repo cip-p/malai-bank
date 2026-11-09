@@ -1,0 +1,138 @@
+name: malai-backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "malai-backend/**"
+      - ".github/workflows/malai-backend.yml"
+  pull_request:
+    paths:
+      - "malai-backend/**"
+      - ".github/workflows/malai-backend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: malai-backend
+
+env:
+  MAVEN_ARGS: -B --no-transfer-progress -Dstyle.color=always
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: malai_test
+          POSTGRES_USER: malai
+          POSTGRES_PASSWORD: malai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U malai"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+      localstack:
+        image: localstack/localstack:3.8.1
+        env:
+          SERVICES: sqs
+          EAGER_SERVICE_LOADING: "1"
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "awslocal sqs list-queues"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 30s
+    env:
+      DATABASE_URL: jdbc:postgresql://localhost:5432/malai_test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/malai_test
+      SPRING_CLOUD_AWS_SQS_ENDPOINT: http://localhost:4566
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: malai-backend/**/pom.xml
+
+      - name: Install malai-sql
+        run: ./mvnw install -pl malai-sql -am
+
+      - name: Migrate the test database
+        run: ./malai-db.sh
+
+      - name: Build and run all tests
+        run: ./mvnw install
+
+      - name: Upload Kensa reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kensa-reports
+          path: malai-backend/**/target/reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  end-to-end-tests:
+    name: End-to-end tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: malai-backend/**/pom.xml
+
+      - name: Install modules
+        run: ./mvnw install -DskipTests
+
+      - name: Start the end-to-end environment
+        run: ./malai-end-to-end-tests/start-e2e-environment.sh
+
+      - name: Run end-to-end tests
+        run: ./mvnw test -pl malai-end-to-end-tests -De2e.skip=false
+
+      - name: Collect compose logs
+        if: always()
+        run: |
+          mkdir -p malai-end-to-end-tests/target
+          docker compose -f malai-end-to-end-tests/docker-compose.e2e.yml logs --no-color --tail=1000 \
+            > malai-end-to-end-tests/target/compose-logs.txt 2>&1 || true
+
+      - name: Stop the end-to-end environment
+        if: always()
+        run: ./malai-end-to-end-tests/stop-e2e-environment.sh || true
+
+      - name: Upload Kensa end-to-end reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kensa-e2e-reports
+          path: |
+            malai-backend/malai-end-to-end-tests/target/reports/
+            malai-backend/malai-end-to-end-tests/target/compose-logs.txt
+          if-no-files-found: ignore
+          retention-days: 14
+

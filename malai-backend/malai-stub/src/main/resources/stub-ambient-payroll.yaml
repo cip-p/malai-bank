@@ -1,0 +1,14 @@
+malai:
+  stub:
+    ambient:
+      payroll:
+        schedules:
+          - beneficiary-sort-code: "65-82-37"
+            beneficiary-account-number: "10000001"
+            beneficiary-name: "Alice Walker"
+            originator-sort-code: "20-00-05"
+            originator-account-number: "20000020"
+            originator-name: "ACME Employer Ltd"
+            amount-minor-units: 250000
+            day-of-month: 25
+            description: "Salary"

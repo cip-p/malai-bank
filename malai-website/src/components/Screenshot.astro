@@ -1,0 +1,58 @@
+---
+import { Picture } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  src: ImageMetadata;
+  alt: string;
+  url?: string;
+  widths?: number[];
+  sizes?: string;
+  class?: string;
+}
+
+const {
+  src,
+  alt,
+  url,
+  widths = [640, 960, 1280, 1920],
+  sizes = "(min-width: 1024px) 50vw, 100vw",
+  class: className = "",
+} = Astro.props;
+
+const displayUrl = url?.replace(/^https?:\/\//, "");
+---
+
+<figure
+  data-testid="screenshot"
+  class:list={[
+    "overflow-hidden rounded-lg border border-rule bg-warm-white shadow-sm",
+    className,
+  ]}
+>
+  <div
+    class="flex items-center gap-1.5 border-b border-rule bg-warm-paper px-3 py-1.5"
+    aria-hidden="true"
+  >
+    <span class="h-1.5 w-1.5 rounded-full bg-red-400/70"></span>
+    <span class="h-1.5 w-1.5 rounded-full bg-amber-400/70"></span>
+    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400/70"></span>
+    {
+      displayUrl && (
+        <span class="ml-1.5 truncate font-mono text-[9px] text-ink-faint">
+          {displayUrl}
+        </span>
+      )
+    }
+  </div>
+  <Picture
+    src={src}
+    alt={alt}
+    widths={widths}
+    sizes={sizes}
+    formats={["avif", "webp"]}
+    fallbackFormat="webp"
+    pictureAttributes={{ class: "block" }}
+    class="w-full"
+  />
+</figure>

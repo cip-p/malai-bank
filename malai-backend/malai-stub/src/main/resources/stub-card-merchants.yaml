@@ -1,0 +1,22 @@
+malai:
+  stub:
+    card:
+      merchants:
+        - merchant-id: "fictional-coffee"
+          name: "Fictional Coffee Co"
+          mcc: "5814"
+        - merchant-id: "nimbus-groceries"
+          name: "Nimbus Groceries"
+          mcc: "5411"
+        - merchant-id: "orbit-transit"
+          name: "Orbit Transit"
+          mcc: "4111"
+        - merchant-id: "lumen-streaming"
+          name: "Lumen Streaming"
+          mcc: "4899"
+        - merchant-id: "harbour-fuel"
+          name: "Harbour Fuel"
+          mcc: "5541"
+        - merchant-id: "atlas-electronics"
+          name: "Atlas Electronics"
+          mcc: "5732"

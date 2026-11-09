@@ -1,0 +1,216 @@
+---
+import { architecture } from "../content/architecture";
+import type { ArchitectureCategoryId } from "../content/architecture";
+import ArchitectureDiagram from "./ArchitectureDiagram.astro";
+
+const { heading, narrative, stats, categories, annotations, evidence } =
+  architecture;
+
+const annotationsByCategory = categories.map((category) => ({
+  ...category,
+  items: annotations.filter(
+    (annotation) => annotation.category === category.id,
+  ),
+}));
+
+const categoryIconPaths: Record<ArchitectureCategoryId, string> = {
+  topology: "M12 3 3 8l9 5 9-5-9-5Z M3 13l9 5 9-5 M3 18l9 5 9-5",
+  services: "M3 8h13 M13 5l3 3-3 3 M21 16H8 M11 13l-3 3 3 3",
+  edge: "M12 2.25c5.385 0 9.75 4.365 9.75 9.75S17.385 21.75 12 21.75 2.25 17.385 2.25 12 6.615 2.25 12 2.25Z M2.25 12h19.5 M12 2.25a14.25 14.25 0 0 1 0 19.5 M12 2.25a14.25 14.25 0 0 0 0 19.5",
+  operations: "M3 17l5-5 4 4 7-9 2 2",
+};
+---
+
+<div class="bg-warm-white">
+  <div class="mx-auto max-w-6xl px-6 pt-20 pb-12 sm:pt-28">
+    <header class="max-w-3xl">
+      <p
+        class="text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase"
+      >
+        Architecture
+      </p>
+      <h1
+        class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-navy-950 sm:text-4xl"
+      >
+        {heading}
+      </h1>
+      <p class="mt-6 text-lg leading-relaxed text-ink-muted">
+        {narrative}
+      </p>
+    </header>
+
+    <dl
+      data-testid="architecture-stats"
+      class="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule sm:grid-cols-4"
+    >
+      {
+        stats.map((stat) => (
+          <div
+            data-testid="architecture-stat"
+            class="flex flex-col gap-1 bg-warm-white px-5 py-6"
+          >
+            <dt class="text-xs leading-snug font-medium tracking-wide text-ink-muted uppercase">
+              {stat.label}
+            </dt>
+            <dd class="font-mono text-lg leading-tight font-semibold text-navy-950 sm:text-xl">
+              {stat.value}
+            </dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+
+  <div class="mx-auto max-w-6xl px-6">
+    <div class="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent-50 text-accent-700"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-5 w-5"
+        >
+          <path
+            d="M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z M10 7h4 M17 10v4 M10 17h4 M7 10v4"
+          ></path>
+        </svg>
+      </span>
+      <h2
+        class="text-base font-semibold tracking-tight text-navy-950 uppercase"
+      >
+        System shape
+      </h2>
+    </div>
+    <p class="mt-3 max-w-3xl text-sm leading-relaxed text-ink-muted">
+      A boxes-and-arrows view of the running system. Solid edges are
+      synchronous; dashed edges are asynchronous events.
+    </p>
+
+    <figure
+      data-testid="architecture-diagram-figure"
+      aria-label={architecture.diagram.title}
+      class="mt-6 rounded-lg border border-rule bg-warm-paper p-6 sm:p-10"
+    >
+      <ArchitectureDiagram />
+    </figure>
+  </div>
+
+  <div data-testid="architecture-annotations" class="mx-auto max-w-6xl px-6">
+    {
+      annotationsByCategory.map((category) => (
+        <section
+          data-testid="architecture-category"
+          data-category-id={category.id}
+          class="mt-16"
+        >
+          <header class="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-8">
+            <div class="md:col-span-4">
+              <div class="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent-50 text-accent-700"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-5 w-5"
+                  >
+                    <path d={categoryIconPaths[category.id]} />
+                  </svg>
+                </span>
+                <h2 class="text-base font-semibold tracking-tight text-navy-950 uppercase">
+                  {category.label}
+                </h2>
+              </div>
+              <p class="mt-3 text-sm leading-relaxed text-ink-muted">
+                {category.blurb}
+              </p>
+            </div>
+            <div class="hidden md:col-span-8 md:block">
+              <div class="h-px w-full translate-y-4 bg-rule" />
+            </div>
+          </header>
+
+          <ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+            {category.items.map((annotation) => (
+              <li
+                data-testid="architecture-annotation"
+                data-category-id={annotation.category}
+                class="flex h-full flex-col rounded-lg border border-rule bg-warm-paper p-6 transition-colors hover:border-navy-700"
+              >
+                <h3
+                  data-testid="architecture-annotation-title"
+                  class="text-base font-semibold tracking-tight text-navy-950"
+                >
+                  {annotation.title}
+                </h3>
+                <p
+                  data-testid="architecture-annotation-detail"
+                  class="mt-3 text-sm leading-relaxed text-ink"
+                >
+                  {annotation.detail}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+
+  <div class="mx-auto max-w-6xl px-6 pb-24 sm:pb-32">
+    <div
+      data-testid="architecture-evidence"
+      class="mt-16 rounded-lg border border-rule bg-warm-paper p-6 sm:p-10"
+    >
+      <div class="flex items-center gap-3">
+        <span
+          aria-hidden="true"
+          class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent-50 text-accent-700"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-5 w-5"
+          >
+            <path
+              d="M9 3.5h6v3H9z M15 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2 M9 13l2 2 4-4"
+            ></path>
+          </svg>
+        </span>
+        <h2
+          class="text-base font-semibold tracking-tight text-navy-950 uppercase"
+        >
+          {evidence.heading}
+        </h2>
+      </div>
+      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-ink-muted">
+        {evidence.body}
+      </p>
+      <a
+        href={evidence.href}
+        data-testid="architecture-evidence-link"
+        target="_blank"
+        aria-describedby="new-tab-hint"
+        rel="noopener noreferrer"
+        class="mt-6 inline-flex items-center text-base font-medium text-accent-600 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      >
+        {evidence.linkLabel}
+      </a>
+    </div>
+  </div>
+</div>

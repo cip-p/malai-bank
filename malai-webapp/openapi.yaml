@@ -1,0 +1,4656 @@
+openapi: 3.1.0
+info:
+  title: Malai Bank API
+  version: "1.0.0"
+  description: |
+    Malai is a UK retail-banking demonstration platform. This file is the
+    cross-repo contract: the webapp (`malai-webapp`) and any first-party CLI
+    generate their clients from it, and CI runs `oasdiff` to fail PRs that
+    introduce non-backwards-compatible changes.
+
+    Conventions:
+      - Money amounts are integer minor units (pence for GBP). The `Money`
+        schema is shared everywhere.
+      - Currency is GBP-only in v1 (`Currency` enum).
+      - UK identifiers: sort codes are `XX-XX-XX`; account numbers are 8 digits.
+      - Auth is JWT-based — clients send either the HttpOnly `access_token`
+        cookie (preferred) or `Authorization: Bearer <jwt>` (mobile/CLI).
+      - Holder-scoped endpoints — every operation taking the
+        `MAL-Account-Holder-Id` header — return 403 Forbidden when the
+        authenticated principal carries no account-holder context (the header
+        is absent), whatever the token's groups. A staff-only token (e.g.
+        `admin` with no `customer` group and no estate) therefore gets 403,
+        never 500. The user-scoped `GET /api/v1/account-holder/all` is the
+        exception: it returns 200 with an empty list for a user with no
+        holders, and is how a client discovers whether any estate exists.
+      - `Idempotency-Key` is REQUIRED on every state-changing path that hits
+        the ledger (transfers, payee create) and any read-only POST that
+        clients legitimately retry (Confirmation of Payee). Identical-key
+        replays return the cached response (24h TTL).
+      - Internal service-to-service routes (`/api/v1/internal/**`) are NOT in
+        this contract — they use a different security model (client-credentials
+        JWT with the `malai-internal/onboarding.write` scope) and are not
+        exposed at the public API Gateway.
+
+  contact:
+    name: Malai Engineering
+    url: https://malaibank.com
+
+servers:
+  - url: https://api.app.malaibank.com
+    description: Production
+  - url: https://api.app-dev.malaibank.com
+    description: Dev
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Cognito-backed passwordless registration, login, and refresh.
+  - name: User
+    description: The signed-in user's own profile and credentials.
+  - name: AccountHolder
+    description: Holder identity, individual / joint / business details, addresses, profile image.
+  - name: Addresses
+    description: Current correspondence address plus historical list.
+  - name: SettleUp
+    description: Settle-up demo profile lookup.
+  - name: Accounts
+    description: The user's accounts and per-account balance / identifier / confirmation-of-funds reads.
+  - name: Transfers
+    description: Same-bank and external transfers (atomic with audit + ledger).
+  - name: Payments
+    description: |
+      Top-level money-movement resource owning the payment lifecycle across
+      rails (BOOK_TRANSFER, FPS, SWIFT, BACS_DIRECT_CREDIT). v1 implements
+      Book Transfer (own → own at the same Malai customer) end-to-end;
+      other rails return BAD_REQUEST until later slices land.
+  - name: Payees
+    description: Saved beneficiaries — the holder's own payee list.
+  - name: ConfirmationOfPayee
+    description: Name-check against the bank's account directory (sort code + account number → verdict).
+  - name: DirectDebits
+    description: Read-only list of incoming direct debits.
+  - name: StandingOrders
+    description: Read-only list of outgoing standing orders.
+  - name: Cards
+    description: |
+      The holder's payment cards. The list carries the masked PAN (last four)
+      per card; the per-card detail is the reveal (full PAN, expiry, CVV —
+      fictional data). Debit cards are auto-issued with each current-style
+      account; there is no ordering or activation step.
+  - name: Platform
+    description: "`/version` and `/ready` health endpoints."
+  - name: Admin
+    description: Operational endpoints reserved for the `admin` Cognito group.
+  - name: Sandbox
+    description: |
+      Demo-platform introspection. Exposes the stub's fictional **Counterparty**
+      catalogue and lets a signed-in user trigger simulated inbound payments
+      against their own accounts. Auth-gated like the rest of `/api/v1/*` but
+      not holder-scoped (the catalogue is reference data).
+  - name: Exec
+    description: |
+      The bank's headline numbers for the executive surface. Composed reads
+      only — this surface owns no facts of its own, and is not holder-scoped.
+  - name: Copilot
+    description: |
+      The bank's read-only investigation aid. Given a reference to something
+      that happened it reconstructs the story in language, with every factual
+      assertion tied to the record it came from. Non-authoritative by
+      construction: nothing in the platform may consume an Explanation as
+      input to an action, and no service client exists that could.
+  - name: Aml
+    description: |
+      The bank's AML investigation surface — cases opened by post-event
+      monitoring Alerts, and the drafted Suspicious Activity Report ruled
+      through the MDR. ADMIN-only throughout. An Alert is a non-advisory
+      Model Decision: ruling on one goes through the existing MDR
+      disposition door, and a Case's terminal transitions are Gate-governed
+      (ADR-0014). No customer-facing surface references any of it — the
+      tipping-off invariant.
+
+paths:
+  # ─────────────────────────── Platform ───────────────────────────
+
+  /version:
+    get:
+      tags: [Platform]
+      summary: Build version
+      description: Returns the version string of the running build. Public — no auth.
+      security: []
+      responses:
+        "200":
+          description: Plain-text version string.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "1.0.0+abc123"
+
+  /ready:
+    get:
+      tags: [Platform]
+      summary: Readiness probe
+      description: Returns 200 once the service is ready. Public — no auth.
+      security: []
+      responses:
+        "200":
+          description: Service is ready.
+
+  # ─────────────────────────── Auth ───────────────────────────
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user (passwordless)
+      description: |
+        Starts a passwordless Registration from a name and email only. For a new
+        email it creates the Cognito user without a password and (synchronously)
+        the corresponding account-holder and accounts via the internal onboarding
+        S2S flow, with a generated UK address and date of birth on file, and Cognito
+        emails a Confirmation code. Registering an email that already belongs to a
+        User is silently a Login — the submitted name is discarded; an Unconfirmed
+        User has their Confirmation code re-sent, a confirmed User is started on an
+        email-OTP Login Challenge — and the response is byte-identical to a fresh
+        Registration, including the `challenge_session` cookie, so it reveals nothing
+        about whether the email is known (Indistinguishability). `verify-code`
+        completes whichever flow is in progress and signs the user in.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "200":
+          description: Confirmation code sent; Challenge session cookie set.
+          headers:
+            Set-Cookie:
+              description: |
+                The `challenge_session` cookie — `HttpOnly; Secure; SameSite=Lax`,
+                short-lived. Carries a real Login Challenge session when the email
+                belongs to a confirmed User, fabricated otherwise; identical in
+                shape in every case.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodeSentResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/v1/auth/verify-code:
+    post:
+      tags: [Auth]
+      summary: Verify an emailed Confirmation code
+      description: |
+        Completes whichever flow the Confirmation code belongs to — decided by the
+        User's state, never by the caller's claimed intent. For an Unconfirmed
+        User this completes the Registration (account activated) and signs them in
+        immediately. For a confirmed User it answers the Login Challenge using the
+        `challenge_session` cookie (or the request body field) and signs them in.
+        Either way the response shape and `access_token` / `refresh_token` cookies
+        are the same, and any Challenge session cookie is cleared. Every failure
+        mode — unknown email, wrong or expired code, missing or spent Challenge
+        session — yields one generic error.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VerifyCodeRequest" }
+      responses:
+        "200":
+          description: Verified and signed in; cookies set; body carries the same tokens for non-cookie clients.
+          headers:
+            Set-Cookie:
+              description: |
+                Sets `access_token` and `refresh_token` (`HttpOnly; Secure;
+                SameSite=Lax`) and clears `challenge_session`.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in (passwordless)
+      description: |
+        Starts a passwordless Login from an email only. For a returning
+        (confirmed) user, Cognito emails a Confirmation code and the response
+        carries the resulting Challenge session in a short-lived HttpOnly
+        `challenge_session` cookie; `verify-code` completes the Login and signs
+        the user in. For an unknown email nothing is sent and a fabricated
+        same-shape Challenge session cookie is set, so the response is identical
+        and reveals nothing about whether the email is known (Indistinguishability).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Confirmation code sent; Challenge session cookie set.
+          headers:
+            Set-Cookie:
+              description: |
+                The `challenge_session` cookie — `HttpOnly; Secure; SameSite=Lax`,
+                short-lived. Identical in shape for known and unknown emails.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodeSentResponse" }
+
+  /api/v1/auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Rotate access + refresh tokens
+      description: |
+        Rotates the session. Webapp clients on a cold load send no body: the
+        refresh token is read from the `refresh_token` cookie and the subject is
+        derived from the `access_token` cookie's JWT — signature verified, expiry
+        ignored (ADR-0002) — so refresh succeeds even after the access token has
+        expired. Mobile / CLI clients keep sending `userId` and `refreshToken` in
+        the body. The rotated `access_token` cookie carries the refresh-window
+        Max-Age (30 days), deliberately outliving the short-lived JWT inside it;
+        authorization still comes solely from the JWT's `exp`.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshTokenRequest" }
+      responses:
+        "200":
+          description: New token triple; cookies rotated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefreshTokenResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/auth/signout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current session
+      description: Clears the access + refresh cookies and revokes the Cognito access token.
+      responses:
+        "200":
+          description: Signed out.
+          headers:
+            Set-Cookie:
+              description: Both cookies cleared.
+              schema: { type: string }
+
+  # ─────────────────────────── User ───────────────────────────
+
+  /api/v1/user:
+    get:
+      tags: [User]
+      summary: Get the signed-in user's profile
+      responses:
+        "200":
+          description: User profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [User]
+      summary: Update the signed-in user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateUserRequest" }
+      responses:
+        "200":
+          description: Updated profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ─────────────────────────── Account holder ───────────────────────────
+
+  /api/v1/account-holder:
+    get:
+      tags: [AccountHolder]
+      summary: Get the active account-holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Active holder.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountHolderResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [AccountHolder]
+      summary: Create a new account-holder for the signed-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAccountHolderRequest" }
+      responses:
+        "200":
+          description: Account-holder created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountHolderResponse" }
+
+  /api/v1/account-holder/all:
+    get:
+      tags: [AccountHolder]
+      summary: List every account-holder reachable by the signed-in user
+      description: |
+        User-scoped — no `MAL-Account-Holder-Id` header. Returns 200 with an
+        empty list when the user owns no holders (a staff-only session, or a
+        customer mid-onboarding); this read is how a client discovers whether
+        any estate exists before selecting a holder.
+      responses:
+        "200":
+          description: Holder list.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountHoldersResponse" }
+
+  /api/v1/account-holder/name:
+    get:
+      tags: [AccountHolder]
+      summary: Display name for the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Display name.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountHolderNameResponse" }
+
+  /api/v1/account-holder/individual:
+    get:
+      tags: [AccountHolder]
+      summary: Get the individual details on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Individual details.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IndividualResponse" }
+    post:
+      tags: [AccountHolder]
+      summary: Set the individual details on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateIndividualRequest" }
+      responses:
+        "200":
+          description: Individual saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IndividualResponse" }
+
+  /api/v1/account-holder/individual/email:
+    put:
+      tags: [AccountHolder]
+      summary: Update the individual's e-mail
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateEmailRequest" }
+      responses:
+        "200": { description: E-mail updated. }
+
+  /api/v1/account-holder/joint:
+    get:
+      tags: [AccountHolder]
+      summary: Get joint-account details on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Joint details (404 if the holder is not a joint).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JointAccountResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/account-holder/business:
+    get:
+      tags: [AccountHolder]
+      summary: Get business details on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Business details.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/account-holder/business/correspondence-address:
+    get:
+      tags: [AccountHolder]
+      summary: Business correspondence address
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Correspondence address.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AddressV2Response" }
+
+  /api/v1/account-holder/business/registered-address:
+    get:
+      tags: [AccountHolder]
+      summary: Business registered address
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Registered address.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AddressV2Response" }
+
+  /api/v1/account-holder/sole-trader:
+    get:
+      tags: [AccountHolder]
+      summary: Sole-trader details on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Sole-trader details.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SoleTraderResponse" }
+
+  /api/v1/account-holder/profile-image:
+    get:
+      tags: [AccountHolder]
+      summary: Get the active holder's profile image
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Binary profile image.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [AccountHolder]
+      summary: Set the active holder's profile image
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - in: header
+          name: Content-Type
+          required: true
+          schema: { type: string, example: "image/png" }
+      requestBody:
+        required: true
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200": { description: Image stored. }
+    delete:
+      tags: [AccountHolder]
+      summary: Remove the active holder's profile image
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200": { description: Image removed. }
+
+  # ─────────────────────────── Addresses ───────────────────────────
+
+  /api/v1/addresses:
+    get:
+      tags: [Addresses]
+      summary: Current + previous addresses on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Addresses.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AddressesResponse" }
+    post:
+      tags: [Addresses]
+      summary: Update the current address (moves the existing current into the previous list)
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddressUpdateRequest" }
+      responses:
+        "200": { description: Address updated. }
+
+  # ─────────────────────────── Settle-up ───────────────────────────
+
+  /api/v1/settle-up/profile:
+    get:
+      tags: [SettleUp]
+      summary: Settle-up profile for the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Settle-up profile.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SettleUpProfileResponse" }
+
+  # ─────────────────────────── Accounts ───────────────────────────
+
+  /api/v1/accounts:
+    get:
+      tags: [Accounts]
+      summary: List the active holder's accounts
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Accounts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountsResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Accounts]
+      summary: Open a new account for the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAccountRequest" }
+      responses:
+        "200":
+          description: Account opened.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountResponse" }
+
+  /api/v1/accounts/{accountUid}/balance:
+    get:
+      tags: [Accounts]
+      summary: Balance for an account
+      description: Projected from `ledger_entries` (D-2.5 — no mutable balance column).
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Account balance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BalanceResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/accounts/{accountUid}/identifiers:
+    get:
+      tags: [Accounts]
+      summary: Sort-code / account-number / IBAN / BIC identifiers
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Account identifiers.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/AccountIdentifiersResponse" }
+
+  /api/v1/accounts/{accountUid}/transactions:
+    get:
+      tags: [Accounts]
+      summary: List recent transactions on an account
+      description: |
+        Returns up to 100 most recent ledger entries on the account, ordered
+        newest-first (`postedAt DESC, entryId DESC`). Each entry carries the
+        running balance at that point in time — the cumulative signed sum of
+        amounts for the account up to and including that entry.
+
+        The running balance reflects the full account history, not just the
+        100 entries returned: if the account has 500 entries, the oldest of
+        the 100 returned will still show a running balance that includes the
+        400 invisible older entries (Plan 02-17 — computed in Postgres via a
+        `SUM(...) OVER (PARTITION BY account_id ORDER BY posted_at, entry_id)`
+        window).
+
+        In-flight card activity is composed in server-side: an authorised,
+        not-yet-settled card purchase appears as a `PENDING` row (carrying the
+        merchant name, the signed amount, and no running-balance mutation) and a
+        refused purchase as a `DECLINED` row (carrying the decline reason, zero
+        balance effect), both merged into the same newest-first order. Settled
+        purchases are already plain ledger rows. If the card service is
+        unavailable the feed still returns its ledger rows (fails open).
+
+        No pagination — the demo never needs more than 100.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Up to 100 most recent ledger entries with running balance, plus any pending/declined card rows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionsResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/accounts/{accountUid}/transactions/{entryId}/category:
+    put:
+      tags: [Accounts]
+      summary: Pin a transaction's category (set an Override)
+      description: |
+        Records the customer's explicit `Category` choice for one ledger entry — an
+        **Override**. The chosen category always wins over the automatic rule, on both
+        the transaction feed and the spending breakdown, and sticks across refreshes.
+
+        Keyed by `entryId`, scoped by `accountUid` ownership. Naturally idempotent —
+        replaying the same body leaves the same state — so this carries **no
+        `Idempotency-Key`**. An unknown/invalid `category` value is rejected `400`.
+        Reverting to automatic categorisation is a `DELETE` on the same path.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - in: path
+          name: entryId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CategoryOverrideRequest" }
+      responses:
+        "200":
+          {
+            description: Override stored — the entry now reads with the pinned category.,
+          }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Accounts]
+      summary: Clear a transaction's category Override (revert to automatic)
+      description: |
+        Removes any customer **Override** on the entry, reverting it to rule-derived
+        categorisation on the next read. Naturally idempotent — clearing an entry with
+        no override is a no-op — so this carries **no `Idempotency-Key`**.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - in: path
+          name: entryId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          {
+            description: Override removed (or already absent) — the entry reverts to automatic.,
+          }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/accounts/{accountUid}/statements/{yyyymm}:
+    get:
+      tags: [Accounts]
+      summary: Monthly statement for an account
+      description: |
+        Returns the statement for the requested calendar month: opening +
+        closing balance in signed minor units, plus every ledger entry whose
+        `postedAt` falls in `[periodStart, periodEnd)` (newest-first). Each
+        entry carries the running balance at that point in time, computed
+        across the account's full history — so the oldest entry of the
+        month still includes every prior entry the period filter clipped
+        out (Plan 02-18 — same window pattern as `GET /transactions`,
+        wrapped in a subquery so the period filter doesn't corrupt the
+        cumulative sum).
+
+        `periodStart` is the first instant of the requested month in UTC;
+        `periodEnd` is the first instant of the following month
+        (exclusive upper bound). `closingBalanceMinorUnits` equals
+        `openingBalanceMinorUnits` when the period has no entries.
+
+        No PDF in v1 — the demo webapp surfaces this as an in-page month
+        view with an honest "PDF download coming soon" small-print line.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - in: path
+          name: yyyymm
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+            example: "2026-05"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Monthly statement with opening/closing balance + entries.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatementResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/accounts/{accountUid}/spending:
+    get:
+      tags: [Accounts]
+      summary: Monthly spending breakdown for an account
+      description: |
+        The spending donut: how much the account spent per `Category` in the
+        requested calendar month, as positive magnitudes, plus a grand total.
+
+        Only debits are counted (credits — money in — are excluded entirely),
+        and the `INCOME` and `TRANSFERS` categories never appear: salary is not
+        spending, and money moved to your own accounts is not spending either.
+        A month with no spending returns an empty `categories` list and a zero
+        total.
+
+        This screen *is* spending-insights — there is nothing to degrade to — so
+        it fails closed: when `insights-service` is unavailable the endpoint
+        returns `503`, unlike the transaction feed which fails open with null
+        categories.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+            example: "2026-05"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Per-category spending totals for the month plus a grand total.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SpendingBreakdownResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /api/v1/accounts/{accountUid}/forecast:
+    get:
+      tags: [Accounts]
+      summary: Balance forecast for the end of the current month
+      description: |
+        Where the account's spendable balance lands by month-end, given the
+        account's active recurring instruments — its `Standing order`s and
+        `Direct-debit mandate`s. The window is always the current calendar
+        month (there is no `month` parameter — a forecast is inherently about
+        "now"); `asOfDate` is today from the shared clock.
+
+        Each active instrument's occurrences are projected across the month
+        (`startDate + n × frequency`, clamped to month-end) and split at today:
+        a `completed` occurrence is dated on or before today (already reflected
+        in the available balance, shown for context, never subtracted again); an
+        `expected` occurrence is dated after today through month-end (these move
+        the forecast). Amounts are signed money-out (negative), so income never
+        appears. The headline `forecastBalanceMinorUnits` is
+        `availableBalanceMinorUnits + expectedTotalMinorUnits`; it may go
+        negative even for a `NO_OVERDRAFT` account — that negative projection is
+        the month-end warning, which the caller derives from the sign.
+
+        The whole screen *is* the forecast, so it fails closed: when a downstream
+        (`ledger-service`, `standing-order-service`, `direct-debit-service`, or
+        `insights-service`) is unavailable the endpoint returns `503` rather than
+        a partial forecast. Read-only — no idempotency key, no audit events.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: The month-end balance forecast plus the completed/expected timeline.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BalanceForecastResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /api/v1/accounts/{accountUid}/confirmation-of-funds:
+    get:
+      tags: [Accounts]
+      summary: Check whether an account can afford a target amount
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - in: query
+          name: targetAmountInMinorUnits
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "200":
+          description: Funds verdict.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/ConfirmationOfFundsResponse" }
+
+  /api/v1/accounts/{accountUid}/credit-summary:
+    get:
+      tags: [Accounts]
+      summary: Credit position for a credit card account
+      description: |
+        Owed, available credit, and the credit limit for a `CREDIT_CARD`
+        account, composed from the ledger. `owedMinorUnits` is the negated
+        ledger balance; `availableCreditMinorUnits` is
+        `creditLimitMinorUnits + availableBalance`, so active holds reduce it
+        immediately. A non-`CREDIT_CARD` account — or one owned by another
+        holder — returns 404 so the resource never leaks.
+      parameters:
+        - $ref: "#/components/parameters/AccountUidPath"
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Credit summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreditSummaryResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────────── Transfers ───────────────────────────
+
+  /api/v1/accounts/{accountId}/transfers:
+    post:
+      tags: [Transfers]
+      summary: (Deprecated) Move money from this account to another sort-code/account-number
+      deprecated: true
+      description: |
+        **Deprecated.** Use `POST /api/v1/payments` instead -- the same endpoint
+        covers book-transfers, FPS (internal and external), and SWIFT. This
+        endpoint now delegates internally to `payments-service` so behaviour is
+        identical, but new integrations should call the unified endpoint
+        directly. Removal of the URL is scheduled for a webapp-cutover follow-up.
+
+        Atomic: writes one `Transaction`, two balanced `ledger_entries`
+        (-amount on source, +amount on destination), and one `TRANSFER_EXECUTED`
+        audit row in a single transaction (D-2.20). Destination resolution:
+        own accounts by sort-code + 8-digit number. Cross-tenant destinations
+        are rejected as `DESTINATION_NOT_FOUND` to avoid leaking holder-id
+        existence.
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the cached
+        response for 24h (BACK-07).
+      parameters:
+        - in: path
+          name: accountId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransferRequest" }
+      responses:
+        "201":
+          description: Transfer accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransferResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ─────────────────────────── Payees ───────────────────────────
+
+  /api/v1/payees:
+    get:
+      tags: [Payees]
+      summary: List saved payees on the active holder
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Saved payees.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PayeesResponse" }
+    post:
+      tags: [Payees]
+      summary: Save a new payee
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PayeeRequest" }
+      responses:
+        "201":
+          description: Payee saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PayeeResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/v1/payees/{payeeId}:
+    delete:
+      tags: [Payees]
+      summary: Remove a saved payee
+      description: |
+        Removing a payee that an ACTIVE standing order pays is rejected with
+        409 (`PAYEE_HAS_ACTIVE_STANDING_ORDER`) so a live instruction is never
+        stranded — the customer must cancel the standing order first. Payees
+        referenced only by CANCELLED orders are removable; the cancelled order's
+        payee link is set to null and it continues to render from its snapshot.
+      parameters:
+        - in: path
+          name: payeeId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "204": { description: Payee removed. }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ─────────────────────────── Cards ───────────────────────────
+
+  /api/v1/cards:
+    get:
+      tags: [Cards]
+      summary: List the holder's cards
+      description: |
+        The holder's cards, newest first. Each entry carries the masked PAN
+        (last four only), the linked account, the variant, the status, and the
+        expiry. The full PAN, expiry, and CVV are only returned by the per-card
+        detail reveal.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: The holder's cards.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardsResponse" }
+
+  /api/v1/cards/{cardId}:
+    get:
+      tags: [Cards]
+      summary: Reveal a card's full details
+      description: |
+        The reveal: full PAN, expiry, and CVV for one of the holder's cards.
+        The data is fictional so there is no step-up. A card that does not
+        belong to the authenticated holder (or does not exist) returns 404.
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: The revealed card.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardDetailResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/cards/{cardId}/freeze:
+    post:
+      tags: [Cards]
+      summary: Freeze a card
+      description: |
+        Freezes a card so it declines every subsequent authorisation with a
+        visible reason. Valid only from `ACTIVE`; a card that is already
+        `FROZEN` or is `CANCELLED` returns 409 with code 6993
+        (`CARD_INVALID_STATE_TRANSITION`) and no state change. Freezing never
+        affects already-approved authorisations or settled entries. Unknown
+        ids — or a card owned by another holder — return 404 (8993,
+        `CARD_NOT_FOUND`) so existence never leaks.
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the cached
+        response for 24h.
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: The frozen card.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/cards/{cardId}/unfreeze:
+    post:
+      tags: [Cards]
+      summary: Unfreeze a card
+      description: |
+        Returns a frozen card to `ACTIVE` so it authorises again. Valid only
+        from `FROZEN`; an `ACTIVE` or `CANCELLED` card returns 409 with code
+        6993 (`CARD_INVALID_STATE_TRANSITION`) and no state change. Unknown
+        ids — or a card owned by another holder — return 404 (8993,
+        `CARD_NOT_FOUND`).
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the cached
+        response for 24h.
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: The reactivated card.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/cards/{cardId}/report-lost-or-stolen:
+    post:
+      tags: [Cards]
+      summary: Report a card lost or stolen and receive a replacement
+      description: |
+        Cancels a card terminally (`→ CANCELLED`) and atomically issues a
+        replacement `ACTIVE` card with a new PAN against the same account,
+        returned in the response. Valid from `ACTIVE` or `FROZEN`; a card that
+        is already `CANCELLED` is terminal and returns 409 with code 6993
+        (`CARD_INVALID_STATE_TRANSITION`) and no state change. The
+        one-active-card-per-account invariant is preserved throughout. Unknown
+        ids — or a card owned by another holder — return 404 (8993,
+        `CARD_NOT_FOUND`).
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the cached
+        response for 24h — the replacement is never issued twice.
+      parameters:
+        - in: path
+          name: cardId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: The cancelled card's id and its replacement.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardReplacementResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ─────────────────────────── Credit card application ───────────────────────────
+
+  /api/v1/credit-card-applications/{accountHolderId}:
+    post:
+      tags: [Cards]
+      summary: Apply for a credit card and receive instant approval
+      description: |
+        The credit card application: a single call that approves instantly (no
+        underwriting — demo theatre) and atomically creates a `CREDIT_CARD`
+        account with ordinary sort-code/account-number identifiers, registers
+        its ledger account floored at the negated credit limit, and issues its
+        `CREDIT` card — all returned in the response. One credit card per holder
+        in v1: a holder who already has an active credit card account is
+        rejected with 409 (6992, `CREDIT_CARD_ACCOUNT_ALREADY_EXISTS`).
+
+        The `{accountHolderId}` in the path must be the authenticated holder
+        (any other value returns 404 so holder existence never leaks); it also
+        scopes the `Idempotency-Key` to the holder, so a key reused across
+        holders is a payload mismatch (422), never a cross-tenant replay.
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the original
+        account and card for 24h — the application never runs twice.
+      parameters:
+        - in: path
+          name: accountHolderId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: Approved — the new credit card account and its card.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/CreditCardApplicationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ─────────────────────────── Confirmation of Payee ───────────────────────────
+
+  /api/v1/confirmation-of-payee:
+    post:
+      tags: [ConfirmationOfPayee]
+      summary: Name-check a (sort-code, account-number, name) triple against the bank's account directory
+      description: |
+        Read-only POST against the bank's account directory (`accounts` joined
+        to `account_identifiers`). Returns `MATCH` (exact, or Levenshtein
+        distance ≤ 2 from the name on record), `CLOSE_MATCH` (similarity at or
+        above the configured threshold on a matching sort+number pair —
+        `onRecordName` is included), or `NO_MATCH` (sort+number not found in
+        the directory, or name too dissimilar).
+
+        Despite being POST, this endpoint does not change state — it is
+        `@NonMutatingEndpoint` at the framework level. `Idempotency-Key` is
+        still required to make the wire contract symmetric with the other
+        mutating POSTs.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConfirmationOfPayeeRequest" }
+      responses:
+        "200":
+          description: Match verdict.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/ConfirmationOfPayeeResponse" }
+
+  # ─────────────────────────── Direct debits ───────────────────────────
+
+  /api/v1/direct-debits:
+    get:
+      tags: [DirectDebits]
+      summary: List direct debits for the active holder, all statuses
+      description: |
+        Returns every direct-debit mandate the holder owns, including
+        `CANCELLED` ones — there is no server-side status filtering. The
+        customer's list keeps cancelled mandates visible (greyed out, marked
+        Cancelled) because that is what real UK banking apps do; support
+        agents rely on the same rows during a customer-support call.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Direct debits.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectDebitsResponse" }
+
+  /api/v1/direct-debits/{directDebitId}:
+    delete:
+      tags: [DirectDebits]
+      summary: Cancel a direct-debit mandate
+      description: |
+        Cancellation is a state transition, never a deletion: `status` flips
+        to `CANCELLED`, `cancelledAt` is stamped, and every other field —
+        including past collections in the transaction feed — is left
+        untouched. Cancelling an already-cancelled mandate is a 204 no-op.
+        Unknown ids and mandates owned by another holder both return 404
+        with code 8994 (`MANDATE_NOT_FOUND`) to avoid leaking existence.
+
+        Cancelling the mandate at the bank does not cancel the customer's
+        agreement with the company — clients surface that warning before
+        confirming.
+      parameters:
+        - in: path
+          name: directDebitId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "204": { description: Direct debit cancelled (or already cancelled). }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────────── Admin ───────────────────────────
+
+  /api/v1/admin/audit-chain/verification:
+    get:
+      tags: [Admin]
+      summary: Trigger on-demand audit-chain integrity verification
+      description: |
+        ADMIN-only operational endpoint. Walks `audit_events` from genesis to
+        `chain_head.last_seq`, recomputes each row's `current_hash`, and
+        cross-checks `chain_head`. Returns a flat verdict.
+
+        The scheduled `ChainVerificationJob` (Plan 02-11, hourly cron, every
+        chain scope) is the primary integrity check; this endpoint exists for ops / SOC /
+        audit who need an on-demand answer (e.g. mid-incident, before
+        signing off a change window).
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      responses:
+        "200":
+          description: Verification outcome.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/AuditChainVerificationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/mdr/chain-verification:
+    get:
+      tags: [Admin]
+      summary: Trigger on-demand MDR-chain integrity verification
+      description: |
+        ADMIN-only operational endpoint. Walks `mdr_entries` from genesis to
+        the `mdr` scope's `chain_head.last_seq`, recomputes each row's
+        `current_hash`, and cross-checks `chain_head`. Returns a flat verdict,
+        identical in shape to the audit-chain endpoint.
+
+        The Model Decision Record chains under its own `chain_head` scope
+        (`mdr`), independent of the audit plane's `global` scope, so this
+        endpoint proves the MDR chain alone. The scheduled chain-verification
+        job (hourly cron) walks every scope and remains the primary control;
+        this endpoint is for ops / SOC / audit who need an on-demand answer.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      responses:
+        "200":
+          description: Verification outcome.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/MdrChainVerificationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/mdr/decisions:
+    get:
+      tags: [Admin]
+      summary: The Decision worklist — every Model Decision with its Ruling in force
+      description: |
+        ADMIN-only. One summary row per Model Decision, newest first (descending
+        chain seq), so a back-office reviewer can find work without knowing a
+        decision id. Each row carries the Decision's identity, Correlation ref,
+        Outcome, model id/version, latency, cost, how many Dispositions have
+        been appended, and the Ruling in force — absent while the Decision
+        awaits its first ruling.
+
+        `rulingState` narrows the listing: `AWAITING_RULING` returns only
+        unruled Decisions; `ACCEPT` / `EDIT` / `REJECT` return Decisions whose
+        latest Disposition matches. Latest wins, exactly as the gate evaluates
+        it. Each row also carries the Decision's structured `verdict` (absent
+        when unparseable or not produced), so the worklist can say what each
+        Decision concluded without a per-decision replay read.
+
+        `advisory` narrows by whether a ruling is expected of the Decision at
+        all, and composes with `rulingState` — `?rulingState=AWAITING_RULING&
+        advisory=false` is the reviewer's default view, the decisions that
+        actually hold something up. Omitted, both kinds are returned.
+
+        Unpaginated, like every list read in this contract — MDR volume is
+        demo-scale and the rows are summaries.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: rulingState
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [AWAITING_RULING, ACCEPT, EDIT, REJECT]
+        - name: advisory
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The Decision summaries, newest first.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/MdrDecisionSummariesResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/mdr/decisions/{decisionId}/dispositions:
+    post:
+      tags: [Admin]
+      summary: Append a human ruling (accept / edit / reject) on a Model Decision
+      description: |
+        ADMIN-only. A back-office reviewer rules on a prior Model Decision by
+        appending an immutable Human Disposition Entry — nothing is ever updated
+        in place. `ACCEPT` and `REJECT` carry the ruling alone; `EDIT` requires
+        the full `editedOutput`, which becomes the hash-covered actionable
+        artifact (the diff is derived at read time, never stored).
+
+        The ruling human's id is taken from the authenticated principal, never
+        the request body. The Disposition chains after the decision it rules on,
+        so its hash transitively covers exactly what the human saw. A decision
+        may accrue several Dispositions over time; latest wins at read time.
+
+        `entryId` is a client-supplied natural idempotency key: a replayed append
+        returns the existing Entry rather than forking the record.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/RecordHumanDispositionRequest" }
+      responses:
+        "201":
+          description: Disposition appended (or the existing Entry on an idempotent replay).
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/RecordHumanDispositionResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+
+  /api/v1/admin/mdr/decisions/{decisionId}:
+    get:
+      tags: [Admin]
+      summary: Replay a Decision's full Entry thread in chain order
+      description: |
+        ADMIN-only. The 18-month replay read: returns the Decision's complete
+        Entry thread in chain order — the one Model Decision followed by every
+        Human Disposition that rules on it, oldest first. The Rendered prompt,
+        Raw output, verdict and Outcome are served inline so the decision is
+        reconstructable long after the fact without any other store surviving.
+
+        For an EDIT Disposition the `diff` is derived at read time from the two
+        immutable outputs (the Raw output and the edited output) and is never
+        stored, so it can never drift from the artifacts it describes.
+        `rulingInForce` is the latest Disposition's kind — the ruling the gate
+        evaluates — or absent when no ruling exists.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The full Entry thread for the Decision.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MdrDecisionThreadResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/mdr/decisions/{decisionId}/actionable-output:
+    get:
+      tags: [Admin]
+      summary: The gate — the actionable output under the Ruling in force
+      description: |
+        ADMIN-only. The single read a consumer uses to obtain output it may act
+        on. It refuses until a qualifying Human Disposition exists, so a service
+        structurally cannot act on unreviewed model output.
+
+        Latest Disposition wins: under `ACCEPT` it serves the Raw output; under
+        `EDIT` it serves the stored edited output verbatim; under `REJECT`, or
+        with no ruling at all, it returns 409 (`MDR_OUTPUT_NOT_ACTIONABLE`,
+        6991). A mistaken accept is corrected by a later reject and a reject is
+        re-opened by a later accept — with the full ruling history intact in the
+        replay read.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The actionable output under the Ruling in force.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/MdrActionableOutputResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ───────────────────────── Copilot ──────────────────────────
+
+  /api/v1/admin/copilot/explanations:
+    post:
+      tags: [Copilot]
+      summary: Explain why something happened, with every claim cited
+      description: |
+        ADMIN-only. Assembles a **Timeline** of the records that genuinely exist
+        for the Subject — the payment row, the ledger hold placed for it, its
+        audit events and the ledger entries its trace caused — invokes a model
+        through the Decider seam, and returns an ordered set of **Claim**s, each
+        citing the **Source record**s it rests on.
+
+        A payment screening referred carries its story too: the payment row names
+        the screening decision, and the audit plane carries the referral, the
+        decision, any human ruling and the release or decline that followed. Those
+        are read from the audit plane and the payment row — never from the MDR,
+        which stays ignorant of this consumer (ADR-0009).
+
+        **Non-authoritative.** An Explanation aids an investigator and is never
+        itself a finding, a disposition, or a reason a thing happened. Nothing
+        in the platform may consume one as input to an action, and that is
+        enforced structurally rather than by policy: no copilot service client
+        exists, so no service can call this route (ADR-0012).
+
+        **Grounding is machine-checked and all-or-nothing.** Every Claim's
+        source refs are validated against the exact assembled Timeline; a Claim
+        citing a record outside it, or citing nothing, fails the whole answer,
+        which is then recorded and refused rather than rendered — so a
+        fabricated citation can never reach the reader. A refusal is a 201
+        carrying the decision id, no claims and `refusalCode`, never an error:
+        the invocation concluded and its record exists.
+
+        **Failure is a recorded fact.** A Decider that exceeds its configured
+        budget is abandoned and appends `TIMED_OUT`; one that fails otherwise
+        appends `ERRORED` with its detail. Both answer 201 with the decision id
+        and no claims — there is a record to read, and no answer. Only a failure
+        to append the Model Decision fails the request itself, which is
+        fail-closed exactly as payment Screening is: nothing a human can read
+        may exist off-chain.
+
+        Every invocation appends exactly one **Model Decision** to the MDR chain
+        *before* the response is served, carrying the model identity, prompt
+        template hash, rendered prompt, one retrieved-context ref per Source
+        record, latency and cost. The decision is **advisory**: no flow waits on
+        it, so it stays out of the reviewer's worklist (ADR-0013).
+
+        Redaction follows screening — account numbers and IBANs are masked to
+        their last four digits — while balance and hold figures are included in
+        full, because the available balance at the moment of the attempt is
+        frequently the whole answer.
+
+        `Idempotency-Key` is REQUIRED: an explanation appends to a hash chain
+        and, behind a real provider, spends money, so a replayed key returns the
+        first explanation rather than forking the record.
+
+        Authorization: requires the `admin` Cognito group; a manager or customer
+        JWT receives 403.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExplanationRequest" }
+      responses:
+        "201":
+          description: |
+            The invocation concluded and its Model Decision was recorded. Claims
+            are present when the answer was grounded, and absent otherwise — the
+            record exists either way.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExplanationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────────── AML ───────────────────────────
+
+  /api/v1/admin/aml/cases:
+    get:
+      tags: [Aml]
+      summary: The case worklist — one investigation home per monitored account
+      description: |
+        ADMIN-only. One summary row per AML Case, newest opened first, so an
+        ops reviewer finds open investigations without querying the MDR by
+        hand. A Case is the single investigation home for an account: an
+        Alert opens one, or joins the account's already-open one, so at most
+        one non-terminal Case exists per account at a time.
+
+        `status` narrows the listing to one lifecycle state; omitted, every
+        Case is returned. Unpaginated, like every list read in this
+        contract — case volume is demo-scale and the rows are summaries.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/AmlCaseStatus" }
+      responses:
+        "200":
+          description: The Case summaries, newest opened first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AmlCaseSummariesResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/aml/cases/{caseId}:
+    get:
+      tags: [Aml]
+      summary: The case detail — the investigation's whole story in one read
+      description: |
+        ADMIN-only. Assembles everything the investigating officer acts on:
+        the Case's lifecycle state, every linked Alert with its typology,
+        risk score, Ruling in force and Evidence payments, and the SAR state
+        once a draft has been requested.
+
+        Alert decision ids are exposed so the Ops surface can drive the
+        existing MDR disposition door — ruling on an Alert needs no AML
+        endpoint, and a Human Disposition recorded there clears the item
+        from this view and the MDR worklist alike. Evidence payments carry
+        the content hash pinned in the Alert's recorded context refs, so the
+        screen is checkable against what the Decider actually saw.
+
+        After a terminal close the detail carries the terminal status, and —
+        for `CLOSED_REPORTED` — the attached SAR narrative exactly as ruled.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The assembled Case detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AmlCaseDetailResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/aml/cases/{caseId}/sar-draft:
+    post:
+      tags: [Aml]
+      summary: Draft the case's SAR narrative — a grounded, recorded Model Decision
+      description: |
+        ADMIN-only. Assembles the Case's timeline — Evidence payments, Alert
+        decisions and their Dispositions, the Case's audit events, every ref
+        content-hashed — and invokes the SAR Decider seam to draft the
+        Suspicious Activity Report narrative. Exactly one non-advisory Model
+        Decision (Correlation ref `CASE`) is appended to the MDR chain
+        *before* the response is served; the timeline refs double as the
+        citation whitelist.
+
+        Grounding is machine-checked and all-or-nothing, exactly as the
+        Copilot's: a narrative citing outside the assembled timeline, or
+        citing nothing, fails the whole draft, which is recorded — Raw
+        output kept, verdict absent — then refused rather than served. A
+        refusal is a 201 carrying the decision id, no narrative and
+        `refusalCode`, never an error: the invocation concluded and its
+        record exists. Only a failure to append the Model Decision fails the
+        request itself — nothing a human can read may exist off-chain.
+
+        Requesting a draft is an officer action: an `OPEN` Case moves to
+        `INVESTIGATING`. The draft binds nothing by itself — it becomes the
+        filed narrative only when close-as-reported later reads an accept or
+        edit ruling on this decision through the Gate (ADR-0014).
+
+        A terminal Case refuses 409 (`AML_CASE_ALREADY_CLOSED`, 6988).
+
+        `Idempotency-Key` is REQUIRED: a draft appends to a hash chain and,
+        behind a real provider, spends money, so a replayed key returns the
+        first draft rather than forking the record.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "201":
+          description: |
+            The invocation concluded and its Model Decision was recorded. The
+            narrative is present when the draft was grounded, and absent
+            otherwise — the record exists either way.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AmlSarDraftResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/aml/cases/{caseId}/close-dismissed:
+    post:
+      tags: [Aml]
+      summary: Close the case as dismissed — noise leaves through the ruled front door
+      description: |
+        ADMIN-only. The workflow's reject path: the officer concludes no
+        suspicion survived and the Case closes `CLOSED_DISMISSED`, emitting
+        its audit event.
+
+        Refused with a domain-coded 409 (`AML_CASE_HAS_ACCEPTED_ALERT`,
+        6990) while any linked Alert's Ruling in force is an accept — a Case
+        with confirmed suspicion cannot be waved away; the ruling must be
+        reversed through the MDR door first. A Case already terminal refuses
+        409 (`AML_CASE_ALREADY_CLOSED`, 6988).
+
+        `Idempotency-Key` is REQUIRED: a retried close enacts exactly once
+        and replays the first response.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: The Case, closed dismissed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AmlCaseDetailResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/aml/cases/{caseId}/close-reported:
+    post:
+      tags: [Aml]
+      summary: Close the case as reported — the SAR ruling consulted through the Gate
+      description: |
+        ADMIN-only. The workflow's report path, and the Gate's synchronous
+        consumer: at the moment of the officer's action the Case's SAR
+        decision is read through the MDR actionable-output Gate. An accept
+        or edit ruling in force yields the (possibly edited) narrative,
+        which is attached to the Case as it closes `CLOSED_REPORTED` with
+        its audit event. An edit's diff stays derivable on the MDR record;
+        the Case carries the ruled narrative verbatim.
+
+        No SAR draft yet, no ruling yet, or a reject in force refuses with a
+        domain-coded 409 (`AML_SAR_NOT_ACTIONABLE`, 6989) and the Case stays
+        exactly where it was — conservative-only (ADR-0008, ADR-0014). No
+        resolver sweep retries this close: a human is driving. A Case
+        already terminal refuses 409 (`AML_CASE_ALREADY_CLOSED`, 6988).
+
+        `Idempotency-Key` is REQUIRED: a retried close enacts exactly once
+        and replays the first response.
+
+        Authorization: requires the `admin` Cognito group; a customer or
+        support_agent JWT receives 403.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "200":
+          description: The Case, closed reported, carrying its attached narrative.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AmlCaseDetailResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  # ─────────────────────────── Exec ───────────────────────────
+
+  /api/v1/exec/metrics:
+    get:
+      tags: [Exec]
+      summary: The bank's headline Metrics over a trailing Banking-day window
+      description: |
+        One composed read serving every tile on the executive dashboard. The
+        default window is the **Banking day** — since midnight `Europe/London`,
+        not UTC and not a rolling 24 hours — and both the window it covered
+        (`window`, `windowStart`, `bankingDay`) and the moment the figures were
+        taken (`asOf`) are returned, so a number on screen is never of unknown
+        freshness.
+
+        `window` widens the figures without changing what any Metric means —
+        all four are flows (created / settled / issued / refused **during** the
+        window), so a wider window changes a query bound, not a definition.
+        Every window is trailing and anchored to London midnight, never rolling
+        from the current second, so a figure is stable within a Banking day:
+          * `TODAY` — the current Banking day (the default).
+          * `LAST_7_DAYS` — since midnight six days before the Banking day:
+            seven Banking days inclusive.
+          * `LAST_30_DAYS` — since midnight twenty-nine days before the
+            Banking day: thirty Banking days inclusive.
+          * `LAST_12_MONTHS` — since midnight twelve calendar months before
+            the Banking day.
+        `windowStart` is the first Banking day the figures cover; for `TODAY`
+        it equals `bankingDay`. The window's end is always the moment of the
+        read — a wider window includes today so far, not a closed past period.
+
+        Every Metric is either `AVAILABLE` with its value or `UNAVAILABLE` with
+        none. `UNAVAILABLE` is a first-class contractual state, not an error and
+        not a zero: the owning context could not be reached or did not answer
+        within its timeout, and the surface renders an honest em-dash rather
+        than a number the platform cannot substantiate. It carries no reason —
+        a client can act on none, and naming the sick source would leak internal
+        topology. One late source therefore costs one tile, never the response,
+        which is served in bounded time regardless of downstream health.
+
+        Metric definitions:
+          * `newCustomers` — account holders created during the Banking day, all
+            holder types. Counted as holders rather than users, so a staff-only
+            login never inflates the bank's customer count.
+          * `deposits` — inbound payments that settled during the Banking day.
+            Excludes transfers between a customer's own accounts, card refunds,
+            and anything not yet settled. A flow figure for the day, so a later
+            return does not retroactively reduce it.
+          * `cardsIssued` — issuance events during the Banking day, not
+            surviving cards; a card cancelled the same day was still issued.
+          * `paymentsStopped` — payments the bank refused after screening
+            review during the Banking day. Deliberately not "fraud prevented":
+            this is money the bank stopped, not proven fraud.
+
+        Money-valued Metrics carry their currency explicitly and report GBP
+        only; non-GBP payments are excluded from the figure rather than summed
+        into it, because minor units of different currencies are not addable.
+
+        Authorization: requires the `manager` or `admin` Cognito group —
+        `MANAGER` is the narrow executive role that offers this surface and
+        nothing else, and `ADMIN` is the superset that also keeps it. A
+        customer or support_agent JWT receives 403.
+      parameters:
+        - name: window
+          in: query
+          required: false
+          description: The trailing window to report over. Omitted, `TODAY`.
+          schema:
+            type: string
+            enum: [TODAY, LAST_7_DAYS, LAST_30_DAYS, LAST_12_MONTHS]
+      responses:
+        "200":
+          description: The window's Metrics, each valued or unavailable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExecMetricsResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  # ─────────────────────────── Standing orders ───────────────────────────
+
+  /api/v1/standing-orders:
+    get:
+      tags: [StandingOrders]
+      summary: List standing orders for the active holder, all statuses
+      description: |
+        Returns every standing order the holder owns, including `CANCELLED`
+        ones — there is no server-side status filtering. Presentation policy
+        (hiding cancelled orders from the customer's list) lives in the
+        client; support agents rely on cancelled rows staying visible here.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "200":
+          description: Standing orders.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StandingOrdersResponse" }
+    post:
+      tags: [StandingOrders]
+      summary: Create a standing order to a saved payee
+      description: |
+        Creation requires a saved payee: the payee's name, sort code and
+        account number are snapshotted onto the order, and execution pays
+        the snapshot — later payee changes or deletion never redirect an
+        existing order.
+
+        `startDate` is the immutable schedule anchor and the date of the
+        first occurrence. It must be today or later; a past date returns
+        7972 (`STANDING_ORDER_START_DATE_IN_PAST`). The order is born
+        `ACTIVE` with `nextPaymentAt` at the start of `startDate` (UTC).
+
+        `currency` is GBP-guarded: anything else returns 7971
+        (`STANDING_ORDER_CURRENCY_NOT_SUPPORTED`).
+
+        An unknown `payeeId` — or one owned by another holder — returns 404
+        with code 8995 (`PAYEE_NOT_FOUND`); an unknown or not-owned
+        `accountId` returns 404 with code 8998 (`ACCOUNT_NOT_FOUND`). The
+        two cases are indistinguishable, so existence never leaks.
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the
+        cached response for 24h.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StandingOrderCreateRequest" }
+      responses:
+        "201":
+          description: Standing order created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StandingOrderResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/standing-orders/{standingOrderId}:
+    delete:
+      tags: [StandingOrders]
+      summary: Cancel a standing order
+      description: |
+        Cancellation is a state transition, never a deletion: `status` flips
+        to `CANCELLED`, `cancelledAt` is stamped, and every other field —
+        including past payments in the transaction feed — is left untouched.
+        Cancelling an already-cancelled order is a 204 no-op. Unknown ids and
+        orders owned by another holder both return 404 with code 8991
+        (`STANDING_ORDER_NOT_FOUND`) to avoid leaking existence.
+      parameters:
+        - in: path
+          name: standingOrderId
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      responses:
+        "204": { description: Standing order cancelled (or already cancelled). }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────────── Payments ───────────────────────────
+
+  /api/v1/payments:
+    post:
+      tags: [Payments]
+      summary: Initiate a payment from one of the caller's accounts
+      description: |
+        Routes on the destination identifiers. Supplying both the UK pair
+        and the international pair returns `BAD_REQUEST` 7978
+        (`PAYMENT_IDENTIFIER_MIXED`); an incomplete pair returns 7982
+        (`PAYMENT_DESTINATION_NOT_FOUND`).
+
+        **UK destination** (`toSortCode` + `toAccountNumber`):
+        - Resolves to an account owned by the same `account_holder_id` as
+          `fromAccountId` → `BOOK_TRANSFER`. Synchronous: the payment is
+          born `SETTLED` and a single balanced transaction carries the
+          bookkeeping (sum-to-zero per `transaction_id`). Sending to the
+          `fromAccountId` itself returns 7980 (`PAYMENT_TO_SAME_ACCOUNT`).
+        - Any other destination (another Malai customer, or external) →
+          `FPS`. The payment is born `PENDING` with the amount reserved as
+          a ledger hold keyed on `paymentId`, and is submitted to the
+          scheme. Settlement posts the hold to the scheme-settlement
+          account (crediting the beneficiary directly when they are also a
+          Malai customer); a return releases the hold and lands
+          `state = RETURNED` with a `returnReason`. The demo scheme decides
+          the outcome from the counterparty catalogue
+          (`GET /api/v1/sandbox/counterparties`); `copVerdictOverride: true`
+          forces a return with `ACCOUNT_NAME_MISMATCH` regardless of
+          destination. `currency` must match the source account's currency
+          (7981, `PAYMENT_AMOUNT_INVALID`).
+
+        **International destination** (`toIban` + `toBic`) → `SWIFT`. Born
+        `PENDING`, always settles after a simulated delay (no return path
+        in v1). A non-GBP `currency` is presentational: the GBP account is
+        debited `amountMinorUnits` and the target-currency amount is
+        reported in `fxConversion` at the stub's fixed display rate.
+
+        Insufficient available funds on the source account return 7983
+        (`PAYMENT_INSUFFICIENT_FUNDS`).
+
+        `Idempotency-Key` is REQUIRED. Identical-key replays return the
+        cached response for 24h.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentRequest" }
+      responses:
+        "201":
+          description: Payment accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/payments/{paymentId}:
+    get:
+      tags: [Payments]
+      summary: Read a payment by id
+      description: |
+        Returns the payment in its current state. The caller must own the
+        payment's debtor account (enforced by `account_holder_id`); other
+        callers receive 404.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - in: path
+          name: paymentId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Payment.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ─────────────────────────── Sandbox ───────────────────────────
+
+  /api/v1/sandbox/counterparties:
+    get:
+      tags: [Sandbox]
+      summary: List the stub's fictional counterparty catalogue
+      description: |
+        Returns every fictional **Counterparty** the demo stub knows about.
+        Reference data shared across all holders — no
+        `MAL-Account-Holder-Id` header required. Each row carries its
+        deterministic `outboundOutcome` so the webapp can narrate which
+        destinations will settle, return (with which reason), or get stuck.
+      responses:
+        "200":
+          description: Counterparty catalogue.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CounterpartiesResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/sandbox/inbound-payments:
+    post:
+      tags: [Sandbox]
+      summary: Simulate an inbound payment crediting one of the holder's accounts
+      description: |
+        Triggers a deterministic inbound payment that lands on the named
+        **Account** as a settled **Transaction**, originated by the named
+        fictional **Counterparty**. The webapp polls the account's
+        transactions after a successful response to surface the result.
+
+        The accepted `creditedAccountId` must belong to the holder named in
+        `MAL-Account-Holder-Id`; cross-holder requests are returned as `404`
+        to avoid leaking account-id existence. Replays with the same
+        `Idempotency-Key` are deduplicated at the malai-api boundary; the
+        stub is invoked exactly once per accepted key.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InboundPaymentRequest" }
+      responses:
+        "202":
+          description: Inbound payment accepted and forwarded to the simulator.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/sandbox/direct-debits:
+    post:
+      tags: [Sandbox]
+      summary: Lodge a direct-debit mandate against one of the holder's accounts
+      description: |
+        Lodges a creditor-originated **direct-debit mandate** on one of the
+        holder's accounts, the way a real creditor would after a sign-up —
+        there is no customer-facing "create direct debit" surface anywhere.
+        The creditor is picked from the fictional **Counterparty** catalogue
+        (`GET /api/v1/sandbox/counterparties`) and its name is snapshotted
+        onto the mandate from the directory.
+
+        The `accountId` must belong to the holder named in
+        `MAL-Account-Holder-Id`; cross-holder requests are returned as `404`
+        to avoid leaking account-id existence. A `startDate` of today means
+        the first collection lands within about a minute, on the collection
+        requester's clock. Sandbox writes are not `Idempotency-Key`
+        protected, consistent with the other sandbox actions.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SandboxDirectDebitRequest" }
+      responses:
+        "201":
+          description: Mandate lodged; the created mandate is returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectDebitResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/sandbox/card-merchants:
+    get:
+      tags: [Sandbox]
+      summary: List the stub's fictional card-merchant directory
+      description: |
+        Returns every fictional **card merchant** the demo scheme knows
+        about, for the Sandbox card-purchase picker — the card-side parallel
+        of `GET /api/v1/sandbox/counterparties`. Reference data shared across
+        all holders — no `MAL-Account-Holder-Id` header required. Each row's
+        `merchantId` is the value passed to `POST /api/v1/sandbox/card-purchases`.
+      responses:
+        "200":
+          description: Card-merchant directory.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardMerchantsResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/sandbox/card-purchases:
+    post:
+      tags: [Sandbox]
+      summary: Trigger a card purchase against one of the holder's cards
+      description: |
+        Originates a real scheme authorisation for one of the holder's cards
+        at a chosen fictional merchant. The `cardId` is resolved
+        server-side and ownership-verified against the holder named in
+        `MAL-Account-Holder-Id`; the card's PAN is fetched internally and is
+        never accepted from the request. The stub scheme then drives the
+        authorisation through the card gateway and card-service exactly as an
+        ambient purchase would, so the response relays the synchronous
+        `APPROVED` / `DECLINED` outcome for the demonstrator to narrate.
+
+        A foreign or unknown `cardId` returns `404` (never `403`) so card ids
+        cannot be enumerated. Declines need no special trigger — freeze the
+        card or exceed the limit and trigger a normal purchase.
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SandboxCardPurchaseRequest" }
+      responses:
+        "200":
+          description: Authorisation outcome relayed from the scheme.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/SandboxCardPurchaseResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/sandbox/card-presentments:
+    post:
+      tags: [Sandbox]
+      summary: Force pending card captures to present now
+      description: |
+        Forces every pending card authorisation the stub scheme is holding to
+        present (settle) immediately, rather than waiting for the configured
+        auto-presentment delay — the demonstrator's "present now" control.
+        Presentment is scheme-wide, so no body and no
+        `MAL-Account-Holder-Id` header are required; the response reports how
+        many captures were presented.
+      responses:
+        "200":
+          description: Pending captures presented.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/SandboxCardPresentmentResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/sandbox/card-refunds:
+    post:
+      tags: [Sandbox]
+      summary: Trigger a merchant refund against a settled card purchase
+      description: |
+        Originates a merchant refund for a previously **settled** card
+        purchase, identified by its `authorisationId`. The authorisation is
+        resolved server-side and ownership-verified against the holder named
+        in `MAL-Account-Holder-Id`; the scheme reference and amount are read
+        from the settled purchase, never accepted from the request. The stub
+        scheme then drives the refund through the card gateway and
+        card-service, landing a merchant-named credit in the account.
+
+        An unknown or foreign `authorisationId` returns `404`; a purchase that
+        exists but is not yet settled returns `400`
+        (`CARD_PURCHASE_NOT_SETTLED`, 7966).
+      parameters:
+        - $ref: "#/components/parameters/MalAccountHolderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SandboxCardRefundRequest" }
+      responses:
+        "202":
+          description: Refund accepted and forwarded to the scheme.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    MalAccountHolderIdHeader:
+      in: header
+      name: MAL-Account-Holder-Id
+      required: true
+      description: |
+        Selected holder for the request. The signed-in user can have multiple
+        holders (joint, business, sole-trader); this header selects which one
+        the request acts on. The server validates that the JWT user owns the
+        named holder.
+
+        Authorization: a request without this header carries no account-holder
+        context and receives 403 Forbidden from every holder-scoped endpoint,
+        whatever the token's groups — the shape a staff-only session (e.g. the
+        ops reviewer: `admin` group, no estate) hits if it calls customer
+        endpoints.
+      schema:
+        type: string
+        format: uuid
+    AccountUidPath:
+      in: path
+      name: accountUid
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKeyHeader:
+      in: header
+      name: Idempotency-Key
+      required: true
+      description: |
+        Required on every state-changing path and on read-only POSTs in the
+        idempotency allow-list. Identical-key replays return the cached
+        response for 24 hours. Pick a UUID v4 per logical operation.
+      schema:
+        type: string
+        maxLength: 64
+
+  responses:
+    BadRequest:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: The authenticated principal is not permitted for this action.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: The named resource does not exist.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: The request conflicts with the current resource state.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    UnprocessableEntity:
+      description: The request is well-formed but names a target that cannot be processed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ServiceUnavailable:
+      description: A downstream dependency this endpoint hard-depends on is unavailable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    Currency:
+      type: string
+      enum: [GBP, EUR, USD]
+      description: |
+        Customer accounts are GBP-only. International outbound payments
+        (SWIFT) accept a target `Currency` distinct from the debited GBP
+        amount; the response carries an `FxConversion` block showing the
+        target-currency amount at the stub's fixed display rate.
+
+    Frequency:
+      type: string
+      enum: [WEEKLY, MONTHLY, QUARTERLY, ANNUAL]
+      description: Recurrence cadence shared by standing orders and direct debits.
+
+    InstrumentStatus:
+      type: string
+      enum: [ACTIVE, CANCELLED]
+      description: |
+        Lifecycle status shared by standing orders and direct debits.
+        Cancellation is a state transition — rows are never deleted, and
+        only `ACTIVE` instruments are ever executed.
+
+    Category:
+      type: string
+      enum:
+        [
+          INCOME,
+          GROCERIES,
+          EATING_OUT,
+          TRANSPORT,
+          BILLS,
+          HOUSING,
+          SUBSCRIPTIONS,
+          TRANSFERS,
+          PAYMENTS,
+          GENERAL,
+        ]
+      description: |
+        Spending-insights classification of a transaction, assigned by
+        `insights-service` from the entry's merchant/description. Unrecognised
+        entries are `GENERAL`. `null` on a transaction only when insights is
+        unavailable — the feed fails open and still renders without pills.
+
+    CategoryOverrideRequest:
+      type: object
+      required: [category]
+      description: |
+        The customer's explicit `Category` choice for one transaction. `category`
+        must be one of the `Category` enum values; any other value is rejected `400`.
+      properties:
+        category: { $ref: "#/components/schemas/Category" }
+
+    Money:
+      type: object
+      required: [currency, amountMinorUnits]
+      properties:
+        currency: { $ref: "#/components/schemas/Currency" }
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: Integer minor units (pence for GBP).
+          example: 12450
+
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: |
+            Numeric error code as a string (the `MalaiCode` enum value, e.g.
+            `"5982"` for JWT_MISSING_IN_HEADER, `"9999"` for generic bean-
+            validation failures). Clients should treat the value as opaque
+            and translate via the published code table.
+          example: "5982"
+
+    # ── Auth ────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [firstName, lastName, email]
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email }
+
+    CodeSentResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: |
+            Constant acknowledgement — identical whatever the submitted email's
+            state, so the response reveals nothing about whether it is known.
+
+    VerifyCodeRequest:
+      type: object
+      required: [email, confirmationCode]
+      properties:
+        email: { type: string, format: email }
+        confirmationCode: { type: string }
+        challengeSession:
+          type: string
+          nullable: true
+          description: |
+            Login Challenge session, only used when verifying a returning user's
+            login code. The browser flow carries it in the `challenge_session`
+            HttpOnly cookie set by `login`; non-browser clients may send it here
+            instead (the cookie wins when both are present). Ignored when
+            completing a registration.
+
+    LoginRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    LoginResponse:
+      type: object
+      required: [userId, accessToken, refreshToken, idToken, expiresIn]
+      properties:
+        userId: { type: string, format: uuid }
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        idToken: { type: string }
+        expiresIn:
+          type: integer
+          description: Seconds until the access token expires.
+
+    RefreshTokenRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Omit on a cold browser load to have the controller derive the subject
+            from the `access_token` cookie's (possibly expired) JWT. Mobile / CLI
+            clients should send it.
+        refreshToken:
+          type: string
+          nullable: true
+          description: |
+            Omit (or send `null`) to have the controller read the token from
+            the `refresh_token` cookie. Mobile/CLI clients should send it here.
+
+    RefreshTokenResponse:
+      type: object
+      required: [accessToken, refreshToken, idToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        idToken: { type: string }
+        expiresIn: { type: integer }
+
+    # ── User ────────────────────────────────────────────────────────
+
+    UserResponse:
+      type: object
+      required: [lastName, email, roles]
+      properties:
+        firstName: { type: string, nullable: true }
+        lastName: { type: string }
+        email: { type: string, format: email }
+        dateOfBirth: { type: string, format: date, nullable: true }
+        roles:
+          type: array
+          description: |
+            The signed-in user's resolved roles, from the authenticated
+            principal (the JWT's Cognito groups) — never from the database, so
+            this can never drift from what the session actually grants. The
+            session cookies are HttpOnly, so this field is how a frontend
+            learns which surfaces to offer.
+          items:
+            type: string
+            enum: [CUSTOMER, SUPPORT_AGENT, ADMIN, MANAGER]
+
+    UpdateUserRequest:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+
+    # ── Account holder ─────────────────────────────────────────────
+
+    AccountHolderResponse:
+      type: object
+      required: [accountHolderUid, accountHolderType]
+      properties:
+        accountHolderUid: { type: string, format: uuid }
+        accountHolderType:
+          type: string
+          example: INDIVIDUAL
+
+    AccountHolderNameResponse:
+      type: object
+      required: [accountHolderName]
+      properties:
+        accountHolderName: { type: string }
+
+    AccountHolderSummaryResponse:
+      type: object
+      required: [accountHolderUid, accountHolderName, accountHolderType]
+      properties:
+        accountHolderUid: { type: string, format: uuid }
+        accountHolderName: { type: string }
+        accountHolderType: { type: string }
+
+    AccountHoldersResponse:
+      type: object
+      required: [accountHolders]
+      properties:
+        accountHolders:
+          type: array
+          items: { $ref: "#/components/schemas/AccountHolderSummaryResponse" }
+
+    CreateAccountHolderRequest:
+      type: object
+      required: [accountHolderType]
+      properties:
+        accountHolderType:
+          type: string
+          example: INDIVIDUAL
+
+    IndividualResponse:
+      type: object
+      required: [firstName, lastName, dateOfBirth, email, phone]
+      properties:
+        title: { type: string, nullable: true }
+        firstName: { type: string }
+        lastName: { type: string }
+        dateOfBirth:
+          type: string
+          description: ISO local date.
+        email: { type: string, format: email }
+        phone: { type: string }
+
+    CreateIndividualRequest:
+      type: object
+      required: [firstName, lastName, dateOfBirth, email, phone]
+      properties:
+        title: { type: string, nullable: true }
+        firstName: { type: string }
+        lastName: { type: string }
+        dateOfBirth: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+
+    JointAccountResponse:
+      type: object
+      required: [accountHolderUid, personOne, personTwo]
+      properties:
+        accountHolderUid: { type: string, format: uuid }
+        personOne: { $ref: "#/components/schemas/IndividualResponse" }
+        personTwo: { $ref: "#/components/schemas/IndividualResponse" }
+
+    BusinessResponse:
+      type: object
+      required: [companyName, email, phone]
+      properties:
+        companyName: { type: string }
+        companyType: { type: string, nullable: true }
+        companyCategory: { type: string, nullable: true }
+        companySubCategory: { type: string, nullable: true }
+        companyRegistrationNumber: { type: string, nullable: true }
+        email: { type: string, format: email }
+        phone: { type: string }
+
+    AddressV2Response:
+      type: object
+      required: [line1, postTown, postCode, countryCode]
+      properties:
+        line1: { type: string }
+        line2: { type: string, nullable: true }
+        line3: { type: string, nullable: true }
+        postTown: { type: string }
+        postCode: { type: string }
+        countryCode: { type: string, example: GB }
+
+    SoleTraderResponse:
+      type: object
+      required: [tradingAsName]
+      properties:
+        tradingAsName: { type: string }
+        businessCategory: { type: string, nullable: true }
+        businessSubCategory: { type: string, nullable: true }
+
+    AddressesResponse:
+      type: object
+      required: [previous]
+      properties:
+        current:
+          allOf:
+            - { $ref: "#/components/schemas/AddressV2Response" }
+          nullable: true
+        previous:
+          type: array
+          items: { $ref: "#/components/schemas/AddressV2Response" }
+
+    AddressUpdateRequest:
+      type: object
+      required: [line1, postTown, postCode, countryCode, from]
+      properties:
+        line1: { type: string }
+        line2: { type: string, nullable: true }
+        line3: { type: string, nullable: true }
+        postTown: { type: string }
+        postCode: { type: string }
+        countryCode: { type: string, example: GB }
+        udprn: { type: string, nullable: true }
+        umprn: { type: string, nullable: true }
+        from:
+          type: string
+          description: ISO date — the move-in date for the new address.
+
+    UpdateEmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    SettleUpProfileResponse:
+      type: object
+      required: [settleUpLink, status]
+      properties:
+        settleUpLink: { type: string, format: uri }
+        status: { type: string }
+
+    # ── Accounts ───────────────────────────────────────────────────
+
+    AccountResponse:
+      type: object
+      required:
+        [accountUid, accountType, defaultCategory, currency, createdAt, name]
+      properties:
+        accountUid: { type: string, format: uuid }
+        accountType:
+          type: string
+          example: CURRENT
+        defaultCategory: { type: string, format: uuid }
+        currency: { $ref: "#/components/schemas/Currency" }
+        createdAt: { type: string, format: date-time }
+        name: { type: string }
+
+    AccountsResponse:
+      type: object
+      required: [accounts]
+      properties:
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/AccountResponse" }
+
+    CreateAccountRequest:
+      type: object
+      required: [accountType, currency, name]
+      properties:
+        accountType:
+          type: string
+          enum: [CURRENT, SAVINGS]
+        currency: { $ref: "#/components/schemas/Currency" }
+        name:
+          type: string
+          description: Display name for the account (e.g. "Main", "Savings").
+
+    BalanceResponse:
+      type: object
+      required:
+        [
+          currency,
+          amountMinorUnits,
+          availableBalanceMinorUnits,
+          heldAmountMinorUnits,
+        ]
+      properties:
+        currency: { $ref: "#/components/schemas/Currency" }
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Signed minor units of the **Ledger balance** — `SUM(entries)`, the
+            book of record. It moves only when money actually settles; an
+            in-flight outbound payment no longer drops it (the reservation is a
+            ledger Hold). Lead the UI with `availableBalanceMinorUnits` instead.
+            Negative values are permitted iff the account modelling grows
+            overdraft semantics (v1 has none — D-2.5 / D-2.8).
+        availableBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Signed minor units of the **Available balance** — `ledger - held`.
+            This is the spendable figure: an in-flight (held) outbound payment
+            reduces it immediately, before settlement moves the ledger balance.
+        heldAmountMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Minor units currently reserved by active holds (in-flight outbound
+            payments). `availableBalanceMinorUnits = amountMinorUnits - heldAmountMinorUnits`.
+        pendingMinorUnits:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Reserved for a future pending lane; always `null` in v1
+            (D-2.8 keeps v1 single-lifecycle).
+
+    CreditSummaryResponse:
+      type: object
+      required:
+        [
+          currency,
+          creditLimitMinorUnits,
+          owedMinorUnits,
+          availableCreditMinorUnits,
+        ]
+      description: |
+        The credit position of a `CREDIT_CARD` account, composed from the
+        ledger balances and the fixed demo credit limit.
+      properties:
+        currency: { $ref: "#/components/schemas/Currency" }
+        creditLimitMinorUnits:
+          type: integer
+          format: int64
+          description: The credit limit in minor units (the fixed demo limit).
+        owedMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Amount owed in minor units — the negated ledger balance. Zero when
+            nothing is owed; positive as the card is spent on.
+        availableCreditMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Spendable credit in minor units —
+            `creditLimitMinorUnits + availableBalance`. Active holds (pending
+            authorisations) reduce it immediately, before settlement.
+        statementBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Current-cycle statement balance in minor units — the amount owed at
+            the close of the current calendar-month cycle (the negated closing
+            ledger balance). Negative when the account is in credit from an
+            overpayment. Composed from `card-service`.
+        minimumPaymentMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Current-cycle minimum payment in minor units — the greater of £5
+            (`500`) or 2.5% of the statement balance, and zero when nothing is
+            owed. Composed from `card-service`.
+        dueDate:
+          type: string
+          format: date
+          description: |
+            Current-cycle payment due date — the 21st of the month following
+            the cycle. Composed from `card-service`.
+
+    TransactionsResponse:
+      type: object
+      required: [accountUid, transactions]
+      properties:
+        accountUid: { type: string, format: uuid }
+        transactions:
+          type: array
+          items: { $ref: "#/components/schemas/TransactionItemResponse" }
+          description: |
+            Up to 100 entries, ordered newest-first
+            (`postedAt DESC, entryId DESC`). Running balance on each entry
+            reflects the cumulative signed sum across the account's full
+            history up to and including that entry.
+
+    StatementResponse:
+      type: object
+      required:
+        - accountUid
+        - periodStart
+        - periodEnd
+        - currency
+        - openingBalanceMinorUnits
+        - closingBalanceMinorUnits
+        - transactions
+      properties:
+        accountUid: { type: string, format: uuid }
+        periodStart:
+          type: string
+          format: date-time
+          description: First instant of the requested calendar month (UTC).
+        periodEnd:
+          type: string
+          format: date-time
+          description: First instant of the following month, exclusive (UTC).
+        currency: { $ref: "#/components/schemas/Currency" }
+        openingBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: Signed balance just before `periodStart`.
+        closingBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Signed balance just before `periodEnd` (equivalently, the
+            running balance after the last entry in the period; equals
+            `openingBalanceMinorUnits` when the month has no entries).
+        transactions:
+          type: array
+          items: { $ref: "#/components/schemas/TransactionItemResponse" }
+          description: |
+            Entries with `postedAt` in `[periodStart, periodEnd)`,
+            ordered newest-first. Running balance reflects full
+            history (window function, not just over the period).
+        statementBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Credit-card statement balance in minor units — the amount owed at
+            the cycle's close (the negated `closingBalanceMinorUnits`). Present
+            only for a `CREDIT_CARD` account; absent for every other type.
+        minimumPaymentMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Credit-card minimum payment in minor units — the greater of £5
+            (`500`) or 2.5% of the statement balance, and zero when nothing is
+            owed. Present only for a `CREDIT_CARD` account.
+        dueDate:
+          type: string
+          format: date
+          description: |
+            Credit-card payment due date — the 21st of the month following the
+            statement cycle. Present only for a `CREDIT_CARD` account.
+
+    SpendingBreakdownResponse:
+      type: object
+      required: [month, currency, categories, totalMinorUnits]
+      properties:
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          example: "2026-05"
+          description: The requested calendar month, echoed back.
+        currency: { $ref: "#/components/schemas/Currency" }
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/SpendingCategoryTotal" }
+          description: |
+            One entry per `Category` the account spent on this month, ordered
+            largest-total-first. `INCOME` and `TRANSFERS` never appear (they are
+            not spending); a month with no spending yields an empty list.
+        totalMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Grand total spent across all categories this month, as a positive
+            magnitude in minor units. `0` when there was no spending.
+
+    SpendingCategoryTotal:
+      type: object
+      required: [category, totalMinorUnits, transactionCount]
+      properties:
+        category: { $ref: "#/components/schemas/Category" }
+        totalMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Total spent in this category this month, as a positive magnitude in
+            minor units (debits only — the sum of the absolute values).
+        transactionCount:
+          type: integer
+          format: int32
+          description: Number of debit entries that contributed to this category.
+
+    BalanceForecastResponse:
+      type: object
+      required:
+        - accountUid
+        - month
+        - windowStart
+        - windowEnd
+        - asOfDate
+        - currency
+        - availableBalanceMinorUnits
+        - completedTotalMinorUnits
+        - expectedTotalMinorUnits
+        - forecastBalanceMinorUnits
+        - completed
+        - expected
+      properties:
+        accountUid: { type: string, format: uuid }
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          example: "2026-07"
+          description: The forecast's calendar month (always the current one), `YYYY-MM`.
+        windowStart:
+          type: string
+          format: date
+          description: First day of the forecast month.
+        windowEnd:
+          type: string
+          format: date
+          description: |
+            Last day of the forecast month — the date the forecast headlines
+            ("balance forecast for 31 July").
+        asOfDate:
+          type: string
+          format: date
+          description: |
+            Today, from the shared clock. Splits `completed` (dated on or before)
+            from `expected` (dated after).
+        currency: { $ref: "#/components/schemas/Currency" }
+        availableBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Spendable balance now (ledger balance minus holds) — the grounded
+            starting point the forecast projects forward from.
+        completedTotalMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Sum of the `completed` occurrences' signed amounts (money already out
+            this month), negative or `0`. Display-only — already in the balance.
+        expectedTotalMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Sum of the `expected` occurrences' signed amounts (money still to
+            leave this month), negative or `0`. This is what moves the forecast.
+        forecastBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            `availableBalanceMinorUnits + expectedTotalMinorUnits`. May be
+            negative — the month-end warning a `NO_OVERDRAFT` account can still
+            project; the caller derives the warning from the sign.
+        completed:
+          type: array
+          items: { $ref: "#/components/schemas/ForecastOccurrence" }
+          description: |
+            Recurring-payment occurrences dated on or before today this month,
+            ascending by date. Shown for context; never subtracted again.
+        expected:
+          type: array
+          items: { $ref: "#/components/schemas/ForecastOccurrence" }
+          description: |
+            Recurring-payment occurrences still to come this month (dated after
+            today through month-end), ascending by date.
+
+    ForecastOccurrence:
+      type: object
+      required: [date, counterpartyName, amountMinorUnits, type, instrumentId]
+      properties:
+        date:
+          type: string
+          format: date
+          description: The projected occurrence date within the forecast month.
+        counterpartyName:
+          type: string
+          description: |
+            The payee name (standing order) or creditor name (direct debit),
+            unified.
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: Signed money-out for this occurrence — always negative.
+        type: { $ref: "#/components/schemas/ForecastInstrumentType" }
+        instrumentId:
+          type: string
+          format: uuid
+          description: |
+            The standing order or direct debit this occurrence projects from,
+            for deep-linking back to the instrument. This is a projection, not a
+            posted ledger entry — there is no `entryId`/`transactionId`.
+
+    ForecastInstrumentType:
+      type: string
+      enum: [STANDING_ORDER, DIRECT_DEBIT]
+      description: |
+        Which kind of recurring instrument a forecast occurrence projects from —
+        the row's Standing order / Direct Debit tag.
+
+    TransactionItemResponse:
+      type: object
+      required:
+        - entryId
+        - transactionId
+        - postedAt
+        - currency
+        - amountMinorUnits
+        - runningBalanceMinorUnits
+      properties:
+        entryId: { type: string, format: uuid }
+        transactionId: { type: string, format: uuid }
+        postedAt: { type: string, format: date-time }
+        currency: { $ref: "#/components/schemas/Currency" }
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: Signed minor units. Negative = debit, positive = credit.
+        runningBalanceMinorUnits:
+          type: integer
+          format: int64
+          description: |
+            Signed running balance in minor units at this entry, computed
+            across the account's full history (window function — Plan 02-17).
+        description: { type: string, nullable: true }
+        counterpartyId: { type: string, format: uuid, nullable: true }
+        merchantName: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [PENDING, DECLINED]
+          nullable: true
+          description: |
+            Card-overlay discriminator. Present only on a card-authorisation
+            row composed into the feed: `PENDING` (an authorised, not-yet-settled
+            purchase — its Hold has dropped available balance but no ledger entry
+            exists) or `DECLINED` (a refused purchase, zero balance effect).
+            Absent on a plain settled ledger row, which keeps its existing shape.
+            Kept as `string` on the wire so the value set can be narrowed without
+            a backwards-incompatible change.
+        declineReason:
+          type: string
+          nullable: true
+          description: |
+            Why a `DECLINED` card row was refused — one of CARD_FROZEN,
+            CARD_CANCELLED, INSUFFICIENT_FUNDS, OVER_LIMIT. Present only on
+            `DECLINED` rows; absent otherwise. Kept as `string` on the wire so
+            the value set can be narrowed without a break.
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            The card this authorisation was made against, so the UI can link the
+            row to the card. Present only on card rows (`PENDING`/`DECLINED`);
+            absent on plain ledger rows.
+        category:
+          type: string
+          nullable: true
+          description: |
+            Spending-insights classification — one of the `Category` enum
+            values (INCOME, GROCERIES, EATING_OUT, TRANSPORT, BILLS, HOUSING,
+            SUBSCRIPTIONS, TRANSFERS, PAYMENTS, GENERAL). Kept as `string` on
+            the wire so restricting it is not a backwards-incompatible change.
+            `null` only when insights is unavailable — the feed fails open.
+
+    AccountIdentifierResponse:
+      type: object
+      required: [identifierType, bankIdentifier, accountIdentifier]
+      properties:
+        identifierType:
+          type: string
+          example: SORT_CODE_AND_ACCOUNT_NUMBER
+        bankIdentifier:
+          type: string
+          description: Sort code (`XX-XX-XX`) for UK identifiers, BIC for IBAN.
+        accountIdentifier:
+          type: string
+          description: 8-digit account number for UK identifiers; full IBAN otherwise.
+
+    AccountIdentifiersResponse:
+      type: object
+      required: [accountIdentifiers]
+      properties:
+        accountIdentifier:
+          type: string
+          nullable: true
+          description: Primary account number (legacy single-identifier surface).
+        bankIdentifier:
+          type: string
+          nullable: true
+          description: Primary sort code (legacy single-identifier surface).
+        iban:
+          type: string
+          nullable: true
+        bic:
+          type: string
+          nullable: true
+        accountIdentifiers:
+          type: array
+          items: { $ref: "#/components/schemas/AccountIdentifierResponse" }
+
+    ConfirmationOfFundsResponse:
+      type: object
+      required:
+        [
+          requestedAmountAvailableToSpend,
+          accountWouldBeInOverdraftIfRequestedAmountSpent,
+        ]
+      properties:
+        requestedAmountAvailableToSpend: { type: boolean }
+        accountWouldBeInOverdraftIfRequestedAmountSpent: { type: boolean }
+
+    # ── Transfers ──────────────────────────────────────────────────
+
+    TransferRequest:
+      type: object
+      required: [toSortCode, toAccountNumber, amountMinorUnits, currency]
+      properties:
+        toSortCode:
+          type: string
+          pattern: '^\d{2}-\d{2}-\d{2}$'
+          example: 65-82-37
+        toAccountNumber:
+          type: string
+          pattern: '^\d{8}$'
+          example: "12345678"
+        amountMinorUnits:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          enum: [GBP]
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
+
+    TransferResponse:
+      type: object
+      required:
+        [
+          transactionId,
+          postedAt,
+          fromAccountId,
+          toAccountId,
+          amountMinorUnits,
+          currency,
+        ]
+      properties:
+        transactionId: { type: string, format: uuid }
+        postedAt: { type: string, format: date-time }
+        fromAccountId: { type: string, format: uuid }
+        toAccountId: { type: string, format: uuid }
+        amountMinorUnits:
+          type: integer
+          format: int64
+        currency: { $ref: "#/components/schemas/Currency" }
+
+    # ── Payments ───────────────────────────────────────────────────
+
+    Rail:
+      type: string
+      enum: [BOOK_TRANSFER, FPS, SWIFT, BACS_DIRECT_CREDIT]
+      description: |
+        The payment channel. v1 implements BOOK_TRANSFER, FPS (Malai-to-Malai
+        and to non-Malai UK destinations), and SWIFT (international, stubbed)
+        outbound end-to-end. BACS_DIRECT_CREDIT is reserved for the inbound
+        ambient-activity slice.
+
+    PaymentState:
+      type: string
+      enum: [PENDING, SETTLED, RETURNED, REFERRED, DECLINED]
+      description: |
+        Lifecycle state for a Payment.
+        - `BOOK_TRANSFER` payments are born `SETTLED` (no `PENDING` window).
+        - `FPS` payments are born `PENDING`. The Stub FPS scheme settles them
+          within ~1 simulated second, after which `GET /api/v1/payments/{id}`
+          returns `state = SETTLED`. Returns move `PENDING → RETURNED` and
+          carry a `returnReason`.
+        - `SWIFT` payments are born `PENDING` and always settle (no return
+          path in v1) after a configurable simulated delay (~30s in real
+          deployments; 0s in tests).
+        - `REFERRED` means pre-dispatch screening flagged the payment and the
+          bank has parked it for review. The payer's funds stay reserved and
+          nothing has been sent to the scheme. A referred payment moves to
+          `PENDING` (released, then the normal rail path) or `DECLINED`.
+        - `DECLINED` is terminal: the bank refused the payment before it
+          reached the scheme, the reservation on the payer's funds is
+          released, and nothing was posted.
+
+        Deliberately no field explains *why* a payment is `REFERRED` or
+        `DECLINED`. A bank must not tip off a suspected fraudster, so the
+        customer-facing contract carries the state and nothing more.
+
+    ReturnReason:
+      type: string
+      enum:
+        - ACCOUNT_CLOSED
+        - ACCOUNT_NAME_MISMATCH
+        - RECIPIENT_BANK_UNAVAILABLE
+        - BENEFICIARY_DECEASED
+        - INVALID_ACCOUNT
+      description: |
+        Why an FPS-routed payment was returned by the scheme. Set on the
+        `Payment` row when the lifecycle moves `PENDING → RETURNED` and
+        surfaced on `GET /api/v1/payments/{id}`.
+
+    OutboundOutcome:
+      type: string
+      enum:
+        - SETTLES
+        - RETURNS
+        - STUCK_PENDING
+      description: |
+        Deterministic outcome the demo stub will produce when a payment is
+        sent to this counterparty. `SETTLES` → the canonical happy path.
+        `RETURNS` → the payment will be returned by the simulated scheme
+        with the row's `returnReason`. `STUCK_PENDING` → the payment will
+        stay `PENDING` indefinitely (cleared by `demo-reset.sh`).
+
+    CounterpartyResponse:
+      type: object
+      required: [sortCode, accountNumber, bank, nameOnRecord, outboundOutcome]
+      properties:
+        sortCode:
+          type: string
+          description: UK sort code in `XX-XX-XX` form.
+        accountNumber:
+          type: string
+          description: 8-digit UK account number.
+        bank:
+          type: string
+          description: Fictional bank name that owns this counterparty.
+        nameOnRecord:
+          type: string
+          description: |
+            The name the stub's directory carries for this account. CoP MATCH
+            requires this exact string; near-matches yield CLOSE_MATCH;
+            anything else yields NO_MATCH.
+        outboundOutcome:
+          $ref: "#/components/schemas/OutboundOutcome"
+        returnReason:
+          allOf:
+            - $ref: "#/components/schemas/ReturnReason"
+          description: |
+            Only present when `outboundOutcome = RETURNS`. The reason the
+            simulated scheme will return outbound payments sent here.
+
+    CounterpartiesResponse:
+      type: object
+      required: [counterparties]
+      properties:
+        counterparties:
+          type: array
+          items: { $ref: "#/components/schemas/CounterpartyResponse" }
+
+    SandboxRail:
+      type: string
+      enum: [FPS, BACS]
+      description: |
+        Inbound rail to simulate. `FPS` issues a near-instant Faster Payments
+        credit; `BACS` issues a BACS Direct Credit. Both land via the same
+        scheme-message plumbing the production rails use, so the resulting
+        **Transaction** is indistinguishable from a real inbound at the
+        ledger level.
+
+    InboundPaymentRequest:
+      type: object
+      required:
+        [
+          rail,
+          creditedAccountId,
+          originatorSortCode,
+          originatorAccountNumber,
+          originatorName,
+          amountMinorUnits,
+        ]
+      properties:
+        rail:
+          $ref: "#/components/schemas/SandboxRail"
+        creditedAccountId:
+          type: string
+          format: uuid
+          description: |
+            Account to credit. Must belong to the holder named in
+            `MAL-Account-Holder-Id`; mismatches return `404` rather than
+            `403` so account ids cannot be enumerated.
+        originatorSortCode:
+          type: string
+          description: |
+            Sort code on the originating side. Typically picked from
+            `GET /api/v1/sandbox/counterparties`, but any UK sort code is
+            accepted.
+        originatorAccountNumber:
+          type: string
+          description: |
+            Account number on the originating side. Typically picked from
+            `GET /api/v1/sandbox/counterparties`.
+        originatorName:
+          type: string
+          description: |
+            Name on the originating side; surfaces on the resulting
+            **Transaction**'s counterparty field in the webapp.
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: Amount in the credited account's currency, in minor units. Must be `> 0`.
+        reference:
+          type: string
+          description: |
+            Free-text payment reference (e.g. "RENT MARCH"). Surfaces on
+            the **Transaction**.
+
+    SandboxDirectDebitRequest:
+      type: object
+      required:
+        [
+          accountId,
+          creditorSortCode,
+          creditorAccountNumber,
+          amountMinorUnits,
+          frequency,
+          startDate,
+        ]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          description: |
+            Account the mandate collects from. Must belong to the holder
+            named in `MAL-Account-Holder-Id`; mismatches return `404` rather
+            than `403` so account ids cannot be enumerated.
+        creditorSortCode:
+          type: string
+          description: |
+            Sort code of the creditor, picked from
+            `GET /api/v1/sandbox/counterparties`. Resolved against the
+            directory; an unknown creditor returns `404`.
+        creditorAccountNumber:
+          type: string
+          description: |
+            Account number of the creditor, picked from
+            `GET /api/v1/sandbox/counterparties`. The mandate snapshots the
+            directory's `nameOnRecord` as the creditor name.
+        amountMinorUnits:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Fixed collection amount in minor units (pence for GBP). Must be `> 0`.
+        reference:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: Free-text mandate reference surfaced on each collection.
+        frequency: { $ref: "#/components/schemas/Frequency" }
+        startDate:
+          type: string
+          format: date
+          description: |
+            Immutable schedule anchor and first collection date. Today or
+            later; today collects within about a minute.
+
+    CardMerchantResponse:
+      type: object
+      required: [merchantId, name, mcc]
+      properties:
+        merchantId:
+          type: string
+          description: |
+            Stable id of the fictional merchant, passed as `merchantId` to
+            `POST /api/v1/sandbox/card-purchases`.
+        name:
+          type: string
+          description: Merchant display name, snapshotted onto the purchase.
+        mcc:
+          type: string
+          description: Four-digit merchant category code.
+
+    CardMerchantsResponse:
+      type: object
+      required: [merchants]
+      properties:
+        merchants:
+          type: array
+          items: { $ref: "#/components/schemas/CardMerchantResponse" }
+
+    SandboxCardPurchaseRequest:
+      type: object
+      required: [cardId, merchantId, amountMinorUnits]
+      properties:
+        cardId:
+          type: string
+          format: uuid
+          description: |
+            Card to spend on. Must belong to the holder named in
+            `MAL-Account-Holder-Id`; mismatches return `404` rather than
+            `403` so card ids cannot be enumerated. The PAN is resolved
+            server-side and never accepted from the request.
+        merchantId:
+          type: string
+          description: |
+            Fictional merchant to charge, picked from
+            `GET /api/v1/sandbox/card-merchants`.
+        amountMinorUnits:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Purchase amount in minor units (pence for GBP). Must be `> 0`.
+
+    CardAuthorisationOutcome:
+      type: string
+      enum: [APPROVED, DECLINED]
+      description: |
+        The synchronous scheme decision on a card authorisation. `DECLINED`
+        carries a `declineReasonCode` from the scheme.
+
+    SandboxCardPurchaseResponse:
+      type: object
+      required: [schemeReference, outcome]
+      properties:
+        schemeReference:
+          type: string
+          format: uuid
+          description: Scheme-assigned reference for the originated authorisation.
+        outcome:
+          $ref: "#/components/schemas/CardAuthorisationOutcome"
+        declineReasonCode:
+          type: string
+          nullable: true
+          description: Present only when `outcome = DECLINED` — the scheme decline code.
+
+    SandboxCardPresentmentResponse:
+      type: object
+      required: [presented]
+      properties:
+        presented:
+          type: integer
+          description: Number of pending captures the scheme presented.
+
+    SandboxCardRefundRequest:
+      type: object
+      required: [authorisationId]
+      properties:
+        authorisationId:
+          type: string
+          format: uuid
+          description: |
+            The settled card purchase to refund. Must belong to the holder
+            named in `MAL-Account-Holder-Id`; unknown or foreign ids return
+            `404`, and a purchase that is not yet settled returns `400`.
+
+    PaymentRequest:
+      type: object
+      required: [fromAccountId, amountMinorUnits, currency]
+      description: |
+        Either UK identifiers (`toSortCode` + `toAccountNumber`) or
+        international identifiers (`toIban` + `toBic` + `paymentPurpose`)
+        must be supplied; mixing the two returns `BAD_REQUEST`.
+      properties:
+        fromAccountId: { type: string, format: uuid }
+        toSortCode:
+          type: string
+          nullable: true
+          pattern: '^\d{2}-\d{2}-\d{2}$'
+          example: 65-82-37
+          description: |
+            UK destination sort code. Mutually exclusive with `toIban`/`toBic`.
+        toAccountNumber:
+          type: string
+          nullable: true
+          pattern: '^\d{8}$'
+          example: "12345678"
+          description: |
+            UK destination account number. Mutually exclusive with `toIban`/`toBic`.
+        toIban:
+          type: string
+          nullable: true
+          description: |
+            International destination IBAN. Required for SWIFT-routed payments;
+            mutually exclusive with the UK identifier pair.
+        toBic:
+          type: string
+          nullable: true
+          description: |
+            International destination BIC (8 or 11 characters). Required for
+            SWIFT-routed payments alongside `toIban`.
+        paymentPurpose:
+          type: string
+          nullable: true
+          maxLength: 255
+          description: |
+            Human-readable reason for the payment, surfaced on SWIFT
+            messages (regulatory and beneficiary-bank disclosure).
+        toName:
+          type: string
+          nullable: true
+          maxLength: 255
+        amountMinorUnits:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            Amount debited from the source GBP account. For SWIFT payments
+            with a non-GBP `currency`, this is still the debited GBP value;
+            the target-currency amount is computed and returned in
+            `fxConversion`.
+        currency: { $ref: "#/components/schemas/Currency" }
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
+        copVerdictOverride:
+          type: boolean
+          default: false
+          description: |
+            Set by the webapp when the customer pressed-through a
+            `NO_MATCH` / `CLOSE_MATCH` Confirmation-of-Payee warning.
+            For FPS-routed payments the scheme treats this as an
+            instruction to return the payment with
+            `returnReason = ACCOUNT_NAME_MISMATCH`, regardless of
+            whether the destination would otherwise have settled.
+
+    PaymentDirection:
+      type: string
+      enum: [OUTBOUND, INBOUND]
+      description: |
+        Whether this payment was sent from a malai customer (`OUTBOUND`) or
+        received into a malai customer's account from an external originator
+        (`INBOUND`). Inbound payments are visible to the beneficiary's
+        account-holder only; the originator side is the external bank's
+        concern.
+
+    PaymentResponse:
+      type: object
+      required:
+        [
+          paymentId,
+          state,
+          rail,
+          direction,
+          createdAt,
+          endToEndId,
+          amountMinorUnits,
+          currency,
+        ]
+      properties:
+        paymentId: { type: string, format: uuid }
+        state: { $ref: "#/components/schemas/PaymentState" }
+        rail: { $ref: "#/components/schemas/Rail" }
+        direction: { $ref: "#/components/schemas/PaymentDirection" }
+        createdAt: { type: string, format: date-time }
+        endToEndId: { type: string, format: uuid }
+        fromAccountId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            The debtor account at malai. Populated for `OUTBOUND` payments;
+            `null` on `INBOUND` payments, where the originator lives at an
+            external bank and is surfaced through `fromSortCode` /
+            `fromAccountNumber` / `fromName`.
+        fromSortCode:
+          type: string
+          nullable: true
+          description: |
+            Originator sort code, populated on `INBOUND` payments.
+        fromAccountNumber:
+          type: string
+          nullable: true
+          description: |
+            Originator account number, populated on `INBOUND` payments.
+        fromName:
+          type: string
+          nullable: true
+          description: |
+            Originator account-holder name, populated on `INBOUND` payments.
+        toAccountId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Populated when the destination resolved to an account malai
+            knows about (e.g. on a Book Transfer, or as the beneficiary
+            account on an `INBOUND` payment).
+        toSortCode: { type: string, nullable: true }
+        toAccountNumber: { type: string, nullable: true }
+        toName: { type: string, nullable: true }
+        amountMinorUnits:
+          type: integer
+          format: int64
+        currency: { $ref: "#/components/schemas/Currency" }
+        description: { type: string, nullable: true }
+        returnReason:
+          allOf:
+            - $ref: "#/components/schemas/ReturnReason"
+          nullable: true
+          description: |
+            Populated when `state = RETURNED`. `null` otherwise.
+        toIban:
+          type: string
+          nullable: true
+          description: |
+            Populated for `SWIFT` payments; `null` for UK rails.
+        toBic:
+          type: string
+          nullable: true
+          description: |
+            Populated for `SWIFT` payments; `null` for UK rails.
+        paymentPurpose:
+          type: string
+          nullable: true
+          description: |
+            Populated for `SWIFT` payments; `null` for UK rails.
+        fxConversion:
+          allOf:
+            - $ref: "#/components/schemas/FxConversion"
+          nullable: true
+          description: |
+            Populated when the SWIFT request specified a non-GBP `currency`.
+            Presentational only — the customer's GBP account is debited
+            `amountMinorUnits`; this block shows the target-currency amount
+            at the stub's fixed display rate.
+
+    FxConversion:
+      type: object
+      required: [amountMinorUnits, currency, rateUsed]
+      properties:
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: Target-currency amount in minor units.
+        currency: { $ref: "#/components/schemas/Currency" }
+        rateUsed:
+          type: string
+          description: |
+            Fixed display rate applied (decimal string, e.g. "1.15").
+            The stub's static rate table is the single source of truth;
+            no spread, no fees.
+
+    # ── Payees ─────────────────────────────────────────────────────
+
+    PayeeRequest:
+      type: object
+      required: [name, sortCode, accountNumber]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 140
+        sortCode:
+          type: string
+          pattern: '^\d{2}-\d{2}-\d{2}$'
+        accountNumber:
+          type: string
+          pattern: '^\d{8}$'
+        nickname:
+          type: string
+          maxLength: 80
+          nullable: true
+
+    PayeeResponse:
+      type: object
+      required: [payeeId, name, sortCode, accountNumber, createdAt]
+      properties:
+        payeeId: { type: string, format: uuid }
+        name: { type: string }
+        sortCode: { type: string }
+        accountNumber: { type: string }
+        nickname: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    PayeesResponse:
+      type: object
+      required: [payees]
+      properties:
+        payees:
+          type: array
+          items: { $ref: "#/components/schemas/PayeeResponse" }
+
+    CardVariant:
+      type: string
+      enum: [DEBIT, CREDIT]
+      description: |
+        `DEBIT` cards attach to a current-style account; `CREDIT` cards attach
+        to a credit card account. v1 issues `DEBIT` automatically with each
+        current account; `CREDIT` arrives with the credit card application.
+
+    CardStatus:
+      type: string
+      enum: [ACTIVE, FROZEN, CANCELLED]
+      description: |
+        `ACTIVE ⇄ FROZEN → CANCELLED` (terminal). Cards are born `ACTIVE`
+        (virtual-first, no ordering/activation step).
+
+    CardResponse:
+      type: object
+      required: [cardId, accountId, maskedPan, variant, status, expiry]
+      properties:
+        cardId: { type: string, format: uuid }
+        accountId:
+          type: string
+          format: uuid
+          description: The account the card is issued against.
+        maskedPan:
+          type: string
+          description: The PAN with only the last four digits shown.
+          example: "************1234"
+        variant: { $ref: "#/components/schemas/CardVariant" }
+        status: { $ref: "#/components/schemas/CardStatus" }
+        expiry:
+          type: string
+          description: Expiry in MM/YY form.
+          example: "10/29"
+
+    CardsResponse:
+      type: object
+      required: [cards]
+      properties:
+        cards:
+          type: array
+          items: { $ref: "#/components/schemas/CardResponse" }
+
+    CardDetailResponse:
+      type: object
+      required:
+        [cardId, accountId, cardholderName, pan, expiry, cvv, variant, status]
+      properties:
+        cardId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        cardholderName: { type: string }
+        pan:
+          type: string
+          description: The full 16-digit PAN (fictional data).
+          example: "9904320000012341"
+        expiry:
+          type: string
+          example: "10/29"
+        cvv:
+          type: string
+          example: "123"
+        variant: { $ref: "#/components/schemas/CardVariant" }
+        status: { $ref: "#/components/schemas/CardStatus" }
+
+    CardReplacementResponse:
+      type: object
+      required: [cancelledCardId, replacementCard]
+      description: |
+        The outcome of reporting a card lost or stolen: the id of the card that
+        was cancelled and the freshly-issued replacement.
+      properties:
+        cancelledCardId:
+          type: string
+          format: uuid
+          description: The card that was cancelled by the report.
+        replacementCard: { $ref: "#/components/schemas/CardResponse" }
+
+    CreditCardApplicationResponse:
+      type: object
+      required: [account, card]
+      description: |
+        The outcome of an approved credit card application: the freshly-created
+        `CREDIT_CARD` account and its `CREDIT` card.
+      properties:
+        account: { $ref: "#/components/schemas/AccountResponse" }
+        card: { $ref: "#/components/schemas/CardResponse" }
+
+    ConfirmationOfPayeeRequest:
+      type: object
+      required: [name, sortCode, accountNumber]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 140
+        sortCode:
+          type: string
+          pattern: '^\d{2}-\d{2}-\d{2}$'
+        accountNumber:
+          type: string
+          pattern: '^\d{8}$'
+
+    ConfirmationOfPayeeResult:
+      type: string
+      enum: [MATCH, CLOSE_MATCH, NO_MATCH]
+
+    ConfirmationOfPayeeResponse:
+      type: object
+      required: [result]
+      properties:
+        result: { $ref: "#/components/schemas/ConfirmationOfPayeeResult" }
+        onRecordName:
+          type: string
+          nullable: true
+          description: |
+            Present only when `result == CLOSE_MATCH`; the name on file for the
+            matched `(sortCode, accountNumber)` so the client can prompt the
+            user to confirm or correct.
+
+    # ── Direct debits ──────────────────────────────────────────────
+
+    DirectDebitResponse:
+      type: object
+      required:
+        [
+          directDebitId,
+          accountId,
+          creditorName,
+          creditorSortCode,
+          creditorAccountNumber,
+          currency,
+          frequency,
+          status,
+          startDate,
+        ]
+      properties:
+        directDebitId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        creditorName: { type: string }
+        creditorSortCode: { type: string }
+        creditorAccountNumber: { type: string }
+        reference: { type: string, nullable: true }
+        amountMinorUnits:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Variable for utility-style direct debits — `null` when the amount
+            is not pre-agreed and is set at collection time.
+        currency: { $ref: "#/components/schemas/Currency" }
+        frequency: { $ref: "#/components/schemas/Frequency" }
+        status: { $ref: "#/components/schemas/InstrumentStatus" }
+        startDate:
+          type: string
+          format: date
+          description: |
+            Immutable schedule anchor — every collection is `startDate +
+            n × frequency`, clamped to month-end in shorter months.
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Stamped when the mandate is cancelled; `null` while active.
+        nextCollectionAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    DirectDebitsResponse:
+      type: object
+      required: [directDebits]
+      properties:
+        directDebits:
+          type: array
+          items: { $ref: "#/components/schemas/DirectDebitResponse" }
+
+    # ── Standing orders ────────────────────────────────────────────
+
+    StandingOrderCreateRequest:
+      type: object
+      required: [accountId, payeeId, amountMinorUnits, frequency, startDate]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          description: Source account; must belong to the active holder.
+        payeeId:
+          type: string
+          format: uuid
+          description: Saved payee whose details are snapshotted onto the order.
+        amountMinorUnits:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          default: GBP
+          description: GBP only in v1.
+        reference:
+          type: string
+          maxLength: 80
+          nullable: true
+        frequency: { $ref: "#/components/schemas/Frequency" }
+        startDate:
+          type: string
+          format: date
+          description: |
+            Immutable schedule anchor and first occurrence date. Today or
+            later.
+
+    StandingOrderResponse:
+      type: object
+      required:
+        [
+          standingOrderId,
+          accountId,
+          payeeName,
+          payeeSortCode,
+          payeeAccountNumber,
+          amountMinorUnits,
+          currency,
+          frequency,
+          status,
+          startDate,
+        ]
+      properties:
+        standingOrderId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        payeeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Linked saved-payee, if the SO was created from a saved payee.
+        payeeName: { type: string }
+        payeeSortCode: { type: string }
+        payeeAccountNumber: { type: string }
+        reference: { type: string, nullable: true }
+        amountMinorUnits:
+          type: integer
+          format: int64
+        currency: { $ref: "#/components/schemas/Currency" }
+        frequency: { $ref: "#/components/schemas/Frequency" }
+        status: { $ref: "#/components/schemas/InstrumentStatus" }
+        startDate:
+          type: string
+          format: date
+          description: |
+            Immutable schedule anchor — every occurrence is `startDate +
+            n × frequency`, clamped to month-end in shorter months.
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Stamped when the order is cancelled; `null` while active.
+        nextPaymentAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    StandingOrdersResponse:
+      type: object
+      required: [standingOrders]
+      properties:
+        standingOrders:
+          type: array
+          items: { $ref: "#/components/schemas/StandingOrderResponse" }
+
+    # ── Admin ──────────────────────────────────────────────────────
+
+    AuditChainVerificationResult:
+      type: string
+      enum:
+        [
+          OK,
+          GAP_AT_SEQ,
+          PREV_HASH_MISMATCH,
+          CURRENT_HASH_MISMATCH,
+          HEAD_MISMATCH,
+        ]
+      description: |
+        Verdict from the audit-chain replay verifier. `OK` is the happy
+        path; the four failure modes name where the chain breaks (see
+        `AuditChainVerifier.VerificationResult` for the writer-side contract).
+
+    AuditChainVerificationResponse:
+      type: object
+      required: [result]
+      properties:
+        result: { $ref: "#/components/schemas/AuditChainVerificationResult" }
+        rowsVerified:
+          type: integer
+          format: int64
+          nullable: true
+          description: Number of rows walked. Present iff `result == OK`.
+        atSeq:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Sequence number where the chain breaks. Present for
+            `GAP_AT_SEQ` / `PREV_HASH_MISMATCH` / `CURRENT_HASH_MISMATCH`.
+
+    MdrChainVerificationResult:
+      type: string
+      enum:
+        [
+          OK,
+          GAP_AT_SEQ,
+          PREV_HASH_MISMATCH,
+          CURRENT_HASH_MISMATCH,
+          HEAD_MISMATCH,
+        ]
+      description: |
+        Verdict from the MDR-chain replay verifier over scope `mdr`. `OK` is
+        the happy path; the four failure modes name where the chain breaks —
+        the same shared `VerificationResult` contract as the audit chain.
+
+    MdrChainVerificationResponse:
+      type: object
+      required: [result]
+      properties:
+        result: { $ref: "#/components/schemas/MdrChainVerificationResult" }
+        rowsVerified:
+          type: integer
+          format: int64
+          nullable: true
+          description: Number of rows walked. Present iff `result == OK`.
+        atSeq:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Sequence number where the chain breaks. Present for
+            `GAP_AT_SEQ` / `PREV_HASH_MISMATCH` / `CURRENT_HASH_MISMATCH`.
+
+    HumanDispositionKind:
+      type: string
+      enum: [ACCEPT, EDIT, REJECT]
+      description: |
+        A human's ruling on a Model Decision. `ACCEPT` makes the Raw output
+        actionable; `EDIT` supplies a full replacement that becomes actionable;
+        `REJECT` bars the output from being acted on.
+
+    RecordHumanDispositionRequest:
+      type: object
+      required: [entryId, disposition]
+      properties:
+        entryId:
+          type: string
+          format: uuid
+          description: |
+            Client-supplied identity of this Entry — the natural idempotency key.
+            A replayed append with the same `entryId` returns the existing Entry.
+        disposition: { $ref: "#/components/schemas/HumanDispositionKind" }
+        editedOutput:
+          type: string
+          nullable: true
+          description: |
+            REQUIRED iff `disposition == EDIT` — the full edited output, stored
+            redacted and hash-covered. Must be absent for `ACCEPT` / `REJECT`.
+
+    RecordHumanDispositionResponse:
+      type: object
+      required: [entryId, decisionId, parentEntryId, seq, disposition]
+      properties:
+        entryId: { type: string, format: uuid }
+        decisionId: { type: string, format: uuid }
+        parentEntryId:
+          type: string
+          format: uuid
+          description: The Model Decision Entry this ruling is chained after.
+        seq:
+          type: integer
+          format: int64
+          description: The Entry's position on the `mdr` chain.
+        disposition: { $ref: "#/components/schemas/HumanDispositionKind" }
+
+    MdrActionableOutputResponse:
+      type: object
+      required: [decisionId, ruling, rulingEntryId, actionableOutput]
+      properties:
+        decisionId: { type: string, format: uuid }
+        ruling:
+          type: string
+          enum: [ACCEPT, EDIT]
+          description: The Ruling in force that made the output actionable.
+        rulingEntryId:
+          type: string
+          format: uuid
+          description: The Disposition Entry that authorised the output.
+        actionableOutput:
+          type: string
+          description: |
+            The Raw output under `ACCEPT`, or the stored edited output verbatim
+            under `EDIT`. Redacted at write time, exactly as stored.
+
+    ExplanationRequest:
+      type: object
+      required: [subjectType, subjectId]
+      properties:
+        subjectType:
+          type: string
+          enum: [PAYMENT]
+          description: |
+            The type half of the Subject ref — the same shape as the MDR's
+            Correlation ref. v1 resolves `PAYMENT` only; further Subject types
+            are additive and need no contract change.
+        subjectId:
+          type: string
+          format: uuid
+          description: The id half of the Subject ref.
+
+    ExplanationResponse:
+      type: object
+      required: [decisionId, outcome, claims]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+          description: |
+            The Model Decision this invocation appended to the MDR chain. Always
+            present — the record exists whether or not an answer could be shown,
+            and replays through the MDR decision-replay read.
+        outcome:
+          type: string
+          enum: [COMPLETED, TIMED_OUT, ERRORED]
+          description: |
+            How the invocation concluded. `COMPLETED` means an answer arrived —
+            which is not the same as an answer being shown, since it may have
+            failed Grounding. `TIMED_OUT` means the Decider exceeded its
+            configured budget and was abandoned; `ERRORED` means it failed some
+            other way. Under both, no answer exists to show and the Entry
+            carries no Raw output.
+        claims:
+          type: array
+          description: |
+            The grounded Claims, in Timeline order. Empty when the answer failed
+            Grounding or never arrived — Grounding is all-or-nothing, so a
+            partially-cited narrative is never returned.
+          items: { $ref: "#/components/schemas/Claim" }
+        refusalCode:
+          type: string
+          enum: [GROUNDING_FAILED]
+          description: |
+            Present only when an answer was produced and then refused, which is
+            the one case a client cannot infer from `outcome` alone: the
+            invocation `COMPLETED`, but a Claim cited a record outside the
+            assembled Timeline or cited nothing, so the whole answer was
+            withheld (ADR-0012). Absent on a served Explanation and absent under
+            `TIMED_OUT` or `ERRORED`, where nothing was produced to refuse.
+
+            The refused answer is not hidden — it is stored verbatim as the
+            Model Decision's Raw output with its Verdict absent, and replays
+            through `GET /api/v1/admin/mdr/decisions/{decisionId}`.
+
+    Claim:
+      type: object
+      required: [text, sources]
+      properties:
+        text:
+          type: string
+          description: One factual assertion about the Subject.
+        sources:
+          type: array
+          minItems: 1
+          description: |
+            The Source records this Claim rests on. Every ref here is guaranteed
+            to appear in the recorded Model Decision's retrieved-context refs, so
+            a reader can resolve any citation back to the record it came from.
+          items: { $ref: "#/components/schemas/SourceRef" }
+
+    SourceRef:
+      type: object
+      required: [type, id]
+      properties:
+        type:
+          type: string
+          enum: [PAYMENT, HOLD, SCREENING_DECISION, AUDIT_EVENT, LEDGER_ENTRY]
+          description: |
+            Which surface owns the cited record. `HOLD` is the ledger reservation
+            placed for the payment; `SCREENING_DECISION` is the decision the
+            payment was referred under, named by the payment row and evidenced on
+            the audit plane rather than read from the MDR (ADR-0009).
+        id:
+          type: string
+          description: The record's identity on that surface.
+
+    MdrDecisionSummariesResponse:
+      type: object
+      required: [decisions]
+      properties:
+        decisions:
+          type: array
+          description: One summary per Model Decision, newest first (descending chain seq).
+          items: { $ref: "#/components/schemas/MdrDecisionSummary" }
+
+    MdrDecisionSummary:
+      type: object
+      required:
+        [
+          decisionId,
+          entryId,
+          seq,
+          ts,
+          outcome,
+          modelId,
+          modelVersion,
+          correlationType,
+          correlationId,
+          advisory,
+          dispositionCount,
+          latencyMs,
+          costMicros,
+          costCurrency,
+        ]
+      properties:
+        decisionId: { type: string, format: uuid }
+        entryId:
+          type: string
+          format: uuid
+          description: The Model Decision Entry's identity.
+        seq:
+          {
+            type: integer,
+            format: int64,
+            description: The Entry's position on the `mdr` chain.,
+          }
+        ts: { type: string, format: date-time }
+        outcome:
+          type: string
+          enum: [COMPLETED, TIMED_OUT, ERRORED]
+        modelId: { type: string }
+        modelVersion: { type: string }
+        correlationType:
+          type: string
+          description: The type half of the opaque Correlation ref (e.g. `PAYMENT`).
+        correlationId:
+          type: string
+          description: The id half of the opaque Correlation ref.
+        advisory:
+          type: boolean
+          description: |
+            Whether the Decision declares that no ruling is expected of it — no
+            flow waits on it, so no consumer will request its Actionable output
+            and no reviewer owes it a ruling. It forbids nothing: a Disposition
+            may still be appended and the gate answers exactly as before. False
+            for every Decision written before the field existed.
+        dispositionCount:
+          type: integer
+          format: int64
+          description: How many Human Dispositions have been appended to this Decision.
+        latencyMs: { type: integer, format: int64 }
+        costMicros: { type: integer, format: int64 }
+        costCurrency: { type: string }
+        rulingInForce:
+          type: string
+          enum: [ACCEPT, EDIT, REJECT]
+          nullable: true
+          description: The latest Disposition's kind, or absent while the Decision awaits its first ruling.
+        verdict:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            The Decision's structured verdict, exactly as the replay read
+            serves it — absent when unparseable or not produced. Carried on
+            the summary so a reviewer can see what each Decision concluded
+            without opening it; the shape is defined by the prompt template
+            and deliberately unconstrained, same as on MdrModelDecisionView.
+
+    MdrDecisionThreadResponse:
+      type: object
+      required:
+        [
+          decisionId,
+          correlationType,
+          correlationId,
+          modelDecision,
+          dispositions,
+        ]
+      properties:
+        decisionId: { type: string, format: uuid }
+        correlationType:
+          type: string
+          description: The type half of the opaque Correlation ref (e.g. `PAYMENT`).
+        correlationId:
+          type: string
+          description: The id half of the opaque Correlation ref.
+        modelDecision: { $ref: "#/components/schemas/MdrModelDecisionView" }
+        dispositions:
+          type: array
+          description: Every Human Disposition on this Decision, oldest first (chain order).
+          items: { $ref: "#/components/schemas/MdrDispositionView" }
+        rulingInForce:
+          type: string
+          enum: [ACCEPT, EDIT, REJECT]
+          nullable: true
+          description: The latest Disposition's kind, or absent when no ruling exists.
+
+    MdrModelDecisionView:
+      type: object
+      required:
+        [
+          entryId,
+          seq,
+          ts,
+          outcome,
+          modelId,
+          modelVersion,
+          advisory,
+          promptTemplateId,
+          promptTemplateVersion,
+          promptTemplateHash,
+          renderedPrompt,
+          latencyMs,
+          costMicros,
+          costCurrency,
+        ]
+      properties:
+        entryId: { type: string, format: uuid }
+        seq:
+          {
+            type: integer,
+            format: int64,
+            description: The Entry's position on the `mdr` chain.,
+          }
+        ts: { type: string, format: date-time }
+        outcome:
+          type: string
+          enum: [COMPLETED, TIMED_OUT, ERRORED]
+        modelId: { type: string }
+        modelVersion: { type: string }
+        advisory:
+          type: boolean
+          description: |
+            Whether the Decision expects a Human Disposition (ADR-0013). An
+            advisory Decision holds nothing up and never lands on the
+            reviewer's worklist; `false` on Entries recorded before the
+            declaration existed.
+        promptTemplateId: { type: string }
+        promptTemplateVersion: { type: string }
+        promptTemplateHash:
+          type: string
+          description: Hex-encoded content hash pinning the Prompt template.
+        renderedPrompt:
+          type: string
+          description: The exact (redacted) text the model saw, stored inline for replay.
+        retrievedContext:
+          type: array
+          nullable: true
+          description: |
+            The context refs the model decided from, as Correlation-style refs
+            with content hashes; absent when none. Provenance, not payload:
+            refs point at mutable rows in other contexts, and the hash is
+            detection, not recovery.
+          items: { $ref: "#/components/schemas/MdrRetrievedContextRef" }
+        rawOutput:
+          type: string
+          nullable: true
+          description: The model's output verbatim modulo redaction. Present iff `outcome == COMPLETED`.
+        verdict:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            Structured verdict parsed from the Raw output; absent when
+            unparseable or not produced. Its shape is defined by the prompt
+            template identified by `promptTemplateId` and varies across
+            templates; the record deliberately leaves it unconstrained and
+            stores what the model actually produced. Treat as opaque
+            structured JSON.
+        errorDetail:
+          type: string
+          nullable: true
+          description: Failure detail. Present iff `outcome == ERRORED`.
+        latencyMs: { type: integer, format: int64 }
+        costMicros: { type: integer, format: int64 }
+        costCurrency: { type: string }
+
+    MdrRetrievedContextRef:
+      type: object
+      required: [type, id, contentHash]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          description: The type half of the Correlation-style ref (e.g. `AUTHORISATION_HISTORY`).
+        id:
+          type: string
+          description: The id half of the Correlation-style ref, naming the row the context came from.
+        contentHash:
+          type: string
+          description: Content hash of the context as retrieved, pinning what the model actually saw.
+
+    MdrDispositionView:
+      type: object
+      required: [entryId, seq, ts, disposition, humanId, parentEntryId]
+      properties:
+        entryId: { type: string, format: uuid }
+        seq: { type: integer, format: int64 }
+        ts: { type: string, format: date-time }
+        disposition: { $ref: "#/components/schemas/HumanDispositionKind" }
+        humanId:
+          type: string
+          format: uuid
+          description: The admin who ruled, from the authenticated principal.
+        parentEntryId:
+          type: string
+          format: uuid
+          description: The Model Decision Entry this ruling is chained after.
+        editedOutput:
+          type: string
+          nullable: true
+          description: The stored replacement; present iff `disposition == EDIT`.
+        diff:
+          type: array
+          nullable: true
+          description: |
+            Line-level difference from the Raw output, derived at read time for
+            an EDIT ruling and never stored. Absent for ACCEPT / REJECT.
+          items: { $ref: "#/components/schemas/MdrDiffLine" }
+
+    MdrDiffLine:
+      type: object
+      required: [op, text]
+      properties:
+        op:
+          type: string
+          enum: [UNCHANGED, REMOVED, ADDED]
+        text: { type: string }
+
+    MetricStatus:
+      type: string
+      description: |
+        Whether a Metric carries a value. `UNAVAILABLE` means the context that
+        owns the underlying facts could not be reached or did not answer within
+        its timeout — the response is still a success, one number is simply not
+        known. Never a stand-in for zero.
+      enum: [AVAILABLE, UNAVAILABLE]
+
+    CountMetric:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/MetricStatus" }
+        count:
+          type: integer
+          format: int64
+          description: Present if and only if `status` is `AVAILABLE`.
+      example: { status: AVAILABLE, count: 12 }
+
+    MoneyMetric:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/MetricStatus" }
+        amountMinorUnits:
+          type: integer
+          format: int64
+          description: Present if and only if `status` is `AVAILABLE`.
+        currency:
+          type: string
+          enum: [GBP]
+          description: |
+            Present if and only if `status` is `AVAILABLE`. GBP only — non-GBP
+            payments are excluded from the figure rather than summed into it.
+      example: { status: AVAILABLE, amountMinorUnits: 1000000, currency: GBP }
+
+    ExecMetricsResponse:
+      type: object
+      required:
+        [
+          window,
+          windowStart,
+          bankingDay,
+          asOf,
+          newCustomers,
+          deposits,
+          cardsIssued,
+          paymentsStopped,
+        ]
+      properties:
+        window:
+          type: string
+          enum: [TODAY, LAST_7_DAYS, LAST_30_DAYS, LAST_12_MONTHS]
+          description: The trailing window these figures cover, echoed back.
+        windowStart:
+          type: string
+          format: date
+          description: |
+            The first Banking day the figures cover, in `Europe/London`.
+            Equals `bankingDay` when the window is `TODAY`.
+        bankingDay:
+          type: string
+          format: date
+          description: The current Banking day — the window's last day, in `Europe/London`.
+        asOf:
+          type: string
+          format: date-time
+          description: The moment the figures were taken.
+        newCustomers: { $ref: "#/components/schemas/CountMetric" }
+        deposits: { $ref: "#/components/schemas/MoneyMetric" }
+        cardsIssued: { $ref: "#/components/schemas/CountMetric" }
+        paymentsStopped: { $ref: "#/components/schemas/MoneyMetric" }
+
+    # ── AML ────────────────────────────────────────────────────────
+
+    AmlCaseStatus:
+      type: string
+      enum: [OPEN, INVESTIGATING, CLOSED_DISMISSED, CLOSED_REPORTED]
+      description: |
+        The Case lifecycle. `OPEN` — Alerts have landed, no officer has
+        acted. `INVESTIGATING` — the first officer action (a Disposition on
+        a linked Alert, or a SAR draft request) has been taken. Terminal:
+        `CLOSED_DISMISSED` (no suspicion survived) and `CLOSED_REPORTED`
+        (the SAR narrative was ruled actionable through the Gate and
+        attached). Terminal transitions are Gate-governed (ADR-0014).
+
+    AmlTypology:
+      type: string
+      enum: [STRUCTURING, RAPID_IN_OUT, HIGH_RISK_CORRIDOR]
+      description: |
+        The pattern an Alert detects. `STRUCTURING` — several outbound
+        payments to one beneficiary, individually under the screening
+        threshold, jointly at or above it. `RAPID_IN_OUT` — an inbound
+        credit drained back out within a short window. `HIGH_RISK_CORRIDOR`
+        — a SWIFT payment whose beneficiary jurisdiction, derived from its
+        IBAN or BIC, is on the versioned high-risk list.
+
+    AmlCaseSummariesResponse:
+      type: object
+      required: [cases]
+      properties:
+        cases:
+          type: array
+          description: One summary per Case, newest opened first.
+          items: { $ref: "#/components/schemas/AmlCaseSummary" }
+
+    AmlCaseSummary:
+      type: object
+      required: [caseId, accountId, status, alertCount, openedAt, updatedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        accountId:
+          type: string
+          format: uuid
+          description: The subject account under investigation.
+        status: { $ref: "#/components/schemas/AmlCaseStatus" }
+        alertCount:
+          type: integer
+          format: int64
+          description: How many Alerts are linked to this Case.
+        openedAt: { type: string, format: date-time }
+        updatedAt:
+          type: string
+          format: date-time
+          description: The last time an Alert attached or the status moved.
+
+    AmlCaseDetailResponse:
+      type: object
+      required: [caseId, accountId, status, openedAt, updatedAt, alerts]
+      properties:
+        caseId: { type: string, format: uuid }
+        accountId:
+          type: string
+          format: uuid
+          description: The subject account under investigation.
+        status: { $ref: "#/components/schemas/AmlCaseStatus" }
+        openedAt: { type: string, format: date-time }
+        updatedAt:
+          type: string
+          format: date-time
+          description: The last time an Alert attached or the status moved.
+        alerts:
+          type: array
+          description: Every Alert linked to the Case, oldest first.
+          items: { $ref: "#/components/schemas/AmlAlertView" }
+        sar:
+          allOf:
+            - $ref: "#/components/schemas/AmlSarView"
+          description: The SAR state; absent until a draft has been requested.
+
+    AmlAlertView:
+      type: object
+      required: [decisionId, typology, riskScore, raisedAt, evidence]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+          description: |
+            The Alert's Model Decision on the `mdr` chain — the id the Ops
+            surface uses to drive the MDR disposition door and replay read.
+        typology: { $ref: "#/components/schemas/AmlTypology" }
+        riskScore:
+          type: integer
+          description: The rule-assigned risk score (0–100) carried in the Decision's verdict.
+        raisedAt: { type: string, format: date-time }
+        rulingInForce:
+          type: string
+          enum: [ACCEPT, EDIT, REJECT]
+          nullable: true
+          description: |
+            The latest Disposition on the Alert's decision, or absent while
+            it awaits its first ruling. Any ruling clears the Alert from the
+            MDR worklist; a REJECT shows it cleared as a false positive.
+        evidence:
+          type: array
+          minItems: 1
+          description: The settled payments the pattern was found over, oldest first.
+          items: { $ref: "#/components/schemas/AmlEvidencePayment" }
+
+    AmlEvidencePayment:
+      type: object
+      required:
+        [
+          paymentId,
+          contentHash,
+          rail,
+          direction,
+          amountMinorUnits,
+          currency,
+          createdAt,
+        ]
+      properties:
+        paymentId: { type: string, format: uuid }
+        contentHash:
+          type: string
+          description: |
+            Hex content hash of the payment as the Decider saw it — the same
+            hash pinned in the Alert decision's retrieved-context ref, so
+            the row on screen is checkable against what the model cited.
+        rail: { $ref: "#/components/schemas/Rail" }
+        direction:
+          type: string
+          enum: [OUTBOUND, INBOUND]
+        amountMinorUnits: { type: integer, format: int64 }
+        currency: { $ref: "#/components/schemas/Currency" }
+        createdAt: { type: string, format: date-time }
+        beneficiaryName: { type: string, nullable: true }
+        beneficiarySortCode:
+          type: string
+          nullable: true
+          description: UK sort code in `XX-XX-XX` form; absent on SWIFT payments.
+        beneficiaryAccountNo:
+          type: string
+          nullable: true
+          description: 8-digit UK account number; absent on SWIFT payments.
+        beneficiaryIban:
+          type: string
+          nullable: true
+          description: Present on SWIFT payments; jurisdiction derives from characters 1–2.
+        beneficiaryBic:
+          type: string
+          nullable: true
+          description: Present on SWIFT payments; jurisdiction derives from characters 5–6.
+
+    AmlSarView:
+      type: object
+      required: [decisionId]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+          description: |
+            The SAR draft's Model Decision on the `mdr` chain — the decision
+            close-as-reported consults through the Gate, and the id the Ops
+            surface uses to rule on the draft via the MDR disposition door.
+        rulingInForce:
+          type: string
+          enum: [ACCEPT, EDIT, REJECT]
+          nullable: true
+          description: The latest Disposition on the SAR decision, or absent while it awaits ruling.
+        narrative:
+          type: string
+          nullable: true
+          description: |
+            The attached narrative, exactly as ruled (the edited output
+            under an EDIT). Present if and only if the Case is
+            `CLOSED_REPORTED`.
+
+    AmlSarDraftResponse:
+      type: object
+      required: [decisionId, outcome]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+          description: |
+            The Model Decision this draft appended to the MDR chain. Always
+            present — the record exists whether or not a narrative could be
+            served — and replays through the MDR decision replay read.
+        outcome:
+          type: string
+          enum: [COMPLETED, TIMED_OUT, ERRORED]
+          description: |
+            How the invocation concluded. `COMPLETED` means a narrative
+            arrived — not the same as one being served, since it may have
+            failed Grounding. `TIMED_OUT` and `ERRORED` carry no narrative;
+            the missing answer is a recorded fact on the chain.
+        narrative:
+          type: string
+          nullable: true
+          description: |
+            The drafted SAR narrative, present when it arrived and every
+            claim cited inside the assembled timeline. This draft is not yet
+            the Case's filed narrative — that happens only at
+            close-as-reported, through the Gate.
+        refusalCode:
+          type: string
+          enum: [GROUNDING_FAILED]
+          description: |
+            Present only when a narrative was produced and then refused: the
+            invocation `COMPLETED`, but a citation strayed outside the
+            assembled timeline (or the draft cited nothing), so the whole
+            draft was withheld. The refused draft is not hidden — it is
+            stored verbatim as the Model Decision's Raw output with its
+            verdict absent, and replays through
+            `GET /api/v1/admin/mdr/decisions/{decisionId}`.

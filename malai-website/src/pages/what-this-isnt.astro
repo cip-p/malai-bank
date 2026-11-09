@@ -1,0 +1,16 @@
+---
+import Layout from "../layouts/Layout.astro";
+import WhatThisIsntHero from "../components/WhatThisIsntHero.astro";
+import AntiClaims from "../components/AntiClaims.astro";
+import NextSteps from "../components/NextSteps.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout
+  title={pageSeo.whatThisIsnt.title}
+  description={pageSeo.whatThisIsnt.description}
+>
+  <WhatThisIsntHero />
+  <AntiClaims />
+  <NextSteps />
+</Layout>

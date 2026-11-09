@@ -1,0 +1,95 @@
+---
+import { SEO } from "astro-seo";
+import { site } from "../content/site";
+import SiteHeader from "../components/SiteHeader.astro";
+import Footer from "../components/Footer.astro";
+import StructuredData from "../components/StructuredData.astro";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  noindex?: boolean;
+}
+
+const {
+  title = site.title,
+  description = site.description,
+  noindex = false,
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const ogImage = new URL(site.ogImage, Astro.site).toString();
+---
+
+<!doctype html>
+<html lang={site.language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <SEO
+      title={title}
+      description={description}
+      canonical={canonical}
+      noindex={noindex}
+      nofollow={noindex}
+      openGraph={{
+        basic: {
+          title,
+          type: "website",
+          image: ogImage,
+          url: canonical,
+        },
+        optional: {
+          description,
+          siteName: site.brand,
+          locale: site.locale,
+        },
+        image: {
+          alt: site.ogImageAlt,
+          width: site.ogImageWidth,
+          height: site.ogImageHeight,
+          type: "image/png",
+        },
+      }}
+      twitter={{
+        card: "summary_large_image",
+        title,
+        description,
+        image: ogImage,
+        imageAlt: site.ogImageAlt,
+      }}
+    />
+    {
+      !noindex && (
+        <StructuredData
+          canonical={canonical}
+          title={title}
+          description={description}
+          pathname={Astro.url.pathname}
+        />
+      )
+    }
+    <script is:inline defer src="/plausible-init.js"></script>
+    <script
+      is:inline
+      async
+      src="https://plausible.io/js/pa-oTcMMe0Sxuw3RYC-nqU6D.js"></script>
+  </head>
+  <body class="min-h-dvh antialiased">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-navy-950 focus:px-3 focus:py-2 focus:text-sm focus:text-warm-white"
+      >Skip to content</a
+    >
+    <SiteHeader />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+    <span id="new-tab-hint" hidden>Opens in a new tab</span>
+  </body>
+</html>

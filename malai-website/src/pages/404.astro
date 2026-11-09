@@ -1,0 +1,35 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout
+  title={pageSeo.notFound.title}
+  description={pageSeo.notFound.description}
+  noindex
+>
+  <section
+    data-testid="not-found"
+    class="mx-auto flex max-w-6xl flex-col items-start px-6 py-24 sm:py-32"
+  >
+    <p class="font-mono text-sm font-medium tracking-[0.2em] text-ink-muted">
+      404
+    </p>
+    <h1
+      class="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-navy-950 sm:text-4xl"
+    >
+      This page doesn’t exist.
+    </h1>
+    <p class="mt-4 max-w-xl text-lg text-ink-muted">
+      The page you were looking for may have moved, or the link that brought you
+      here is out of date.
+    </p>
+    <a
+      data-testid="not-found-home-link"
+      href="/"
+      class="mt-10 inline-flex items-center rounded-md bg-navy-950 px-5 py-3 text-base font-medium text-warm-white transition-colors hover:bg-navy-800 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+    >
+      Back to home
+    </a>
+  </section>
+</Layout>

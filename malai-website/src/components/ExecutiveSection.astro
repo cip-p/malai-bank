@@ -1,0 +1,78 @@
+---
+import type { ImageMetadata } from "astro";
+import { executive } from "../content/executive";
+import Screenshot from "./Screenshot.astro";
+
+const { heading, narrative, screenshot, caption, points, cta } = executive;
+
+const screenshotModules = import.meta.glob<{ default: ImageMetadata }>(
+  "../assets/screenshots/*.png",
+  { eager: true },
+);
+
+const screenshotSrc = (file: string): ImageMetadata => {
+  const module = screenshotModules[`../assets/screenshots/${file}`];
+  if (!module) throw new Error(`Missing screenshot asset: ${file}`);
+  return module.default;
+};
+---
+
+<div class="bg-warm-white">
+  <div class="mx-auto max-w-6xl px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
+    <header class="max-w-3xl">
+      <p
+        class="text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase"
+      >
+        Executive
+      </p>
+      <h1
+        class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-navy-950 sm:text-4xl"
+      >
+        {heading}
+      </h1>
+      <p class="mt-6 text-lg leading-relaxed text-ink-muted">
+        {narrative}
+      </p>
+    </header>
+
+    <div data-testid="executive-screenshot" class="mx-auto mt-12 max-w-4xl">
+      <Screenshot
+        src={screenshotSrc(screenshot.file)}
+        alt={screenshot.alt}
+        sizes="(min-width: 1024px) 56rem, 100vw"
+      />
+      <p class="mt-3 text-sm text-ink-faint">
+        {caption}
+      </p>
+    </div>
+
+    <ul class="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {
+        points.map((point) => (
+          <li
+            data-testid="executive-point"
+            class="flex flex-col rounded-lg border border-rule bg-warm-paper p-6 transition-colors hover:border-navy-700"
+          >
+            <h2 class="text-base font-semibold tracking-tight text-navy-950">
+              {point.title}
+            </h2>
+            <p class="mt-3 text-sm leading-relaxed text-ink-muted">
+              {point.detail}
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+
+    <a
+      data-testid="executive-cta"
+      href={cta.href}
+      target="_blank"
+      aria-describedby="new-tab-hint"
+      rel="noopener noreferrer"
+      class="mt-14 inline-flex items-center rounded-md bg-navy-950 px-5 py-3 text-base font-medium text-warm-white transition-colors hover:bg-navy-800 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+    >
+      {cta.label}
+    </a>
+  </div>
+</div>

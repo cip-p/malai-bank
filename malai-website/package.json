@@ -1,0 +1,51 @@
+{
+  "name": "malai-website",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "test:lighthouse": "lhci autorun",
+    "lint:forbidden": "tsx scripts/lint-forbidden-terms.ts",
+    "og:generate": "node scripts/generate-og-image.ts",
+    "typecheck": "astro check",
+    "prettier": "prettier --check .",
+    "prettier:fix": "prettier --write ."
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^8.1.3",
+    "@astrojs/react": "^7.1.4",
+    "@astrojs/sitemap": "^3.7.4",
+    "@tailwindcss/vite": "^4.3.5",
+    "astro": "^7.4.7",
+    "astro-seo": "^0.8.0",
+    "lucide-react": "^0.460.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@axe-core/playwright": "^4.11.3",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.49.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "cookie": "^2.0.2",
+    "prettier": "^3.3.0",
+    "prettier-plugin-astro": "^0.14.0",
+    "sharp": "^0.35.0",
+    "tsx": "^4.19.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.12"
+  }
+}

@@ -1,0 +1,9 @@
+---
+import Layout from "../layouts/Layout.astro";
+import TermsContent from "../components/TermsContent.astro";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout title={pageSeo.terms.title} description={pageSeo.terms.description}>
+  <TermsContent />
+</Layout>

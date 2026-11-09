@@ -1,0 +1,85 @@
+---
+import { footer } from "../content/footer";
+import { site } from "../content/site";
+import { breadcrumbLabelFor } from "../lib/breadcrumbs";
+
+interface Props {
+  canonical: string;
+  title: string;
+  description: string;
+  pathname: string;
+}
+
+const { canonical, title, description, pathname } = Astro.props;
+
+const origin = new URL("/", Astro.site).toString();
+const organisationId = `${origin}#organization`;
+const websiteId = `${origin}#website`;
+const breadcrumbId = `${canonical}#breadcrumb`;
+
+const crumb = breadcrumbLabelFor(pathname);
+
+const organisation = {
+  "@type": "Organization",
+  "@id": organisationId,
+  name: site.brand,
+  url: origin,
+  email: site.contactEmail,
+  description: footer.description,
+  disambiguatingDescription: footer.disclosure,
+  logo: {
+    "@type": "ImageObject",
+    url: new URL("/logo.png", Astro.site).toString(),
+    width: 512,
+    height: 512,
+  },
+  image: new URL(site.ogImage, Astro.site).toString(),
+};
+
+const website = {
+  "@type": "WebSite",
+  "@id": websiteId,
+  url: origin,
+  name: site.brand,
+  description: site.description,
+  inLanguage: site.language,
+  publisher: { "@id": organisationId },
+};
+
+const webPage = {
+  "@type": "WebPage",
+  "@id": canonical,
+  url: canonical,
+  name: title,
+  description,
+  inLanguage: site.language,
+  isPartOf: { "@id": websiteId },
+  primaryImageOfPage: new URL(site.ogImage, Astro.site).toString(),
+  ...(crumb ? { breadcrumb: { "@id": breadcrumbId } } : {}),
+};
+
+const breadcrumbList = crumb
+  ? {
+      "@type": "BreadcrumbList",
+      "@id": breadcrumbId,
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: origin },
+        { "@type": "ListItem", position: 2, name: crumb, item: canonical },
+      ],
+    }
+  : undefined;
+
+const graph = {
+  "@context": "https://schema.org",
+  "@graph": [
+    organisation,
+    website,
+    webPage,
+    ...(breadcrumbList ? [breadcrumbList] : []),
+  ],
+};
+
+const json = JSON.stringify(graph).replace(/</g, "\\u003c");
+---
+
+<script type="application/ld+json" is:inline set:html={json} />

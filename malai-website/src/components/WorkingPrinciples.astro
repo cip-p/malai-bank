@@ -1,0 +1,53 @@
+---
+import { about } from "../content/about";
+
+const { principles } = about;
+---
+
+<section
+  id="principles"
+  class="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 sm:py-24"
+>
+  <header class="max-w-3xl">
+    <p
+      class="text-xs font-semibold tracking-[0.16em] text-accent-600 uppercase"
+    >
+      {principles.eyebrow}
+    </p>
+    <h2
+      class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-navy-950 sm:text-4xl"
+    >
+      {principles.heading}
+    </h2>
+    <p class="mt-4 text-base leading-relaxed text-ink-muted">
+      {principles.intro}
+    </p>
+  </header>
+
+  <ul
+    data-testid="principles-grid"
+    class="mt-12 grid gap-4 md:grid-cols-3 md:gap-5"
+    role="list"
+  >
+    {
+      principles.items.map((p) => (
+        <li
+          data-testid="principle-card"
+          class="flex h-full flex-col rounded-lg border border-rule bg-warm-paper p-6 transition-colors hover:border-navy-700"
+        >
+          <h3 class="text-base font-semibold tracking-tight text-navy-950">
+            {p.label}
+          </h3>
+          <p class="mt-3 text-sm leading-relaxed text-ink-muted">{p.detail}</p>
+        </li>
+      ))
+    }
+  </ul>
+
+  <p
+    data-testid="principles-pullquote"
+    class="mt-10 max-w-3xl border-l-2 border-accent-600 pl-4 text-sm leading-relaxed text-ink italic"
+  >
+    {principles.pullquote}
+  </p>
+</section>

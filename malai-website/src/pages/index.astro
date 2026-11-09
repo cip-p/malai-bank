@@ -1,0 +1,42 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Hero from "../components/Hero.astro";
+import SurfacesSection from "../components/SurfacesSection.astro";
+import FunctionalitySection from "../components/FunctionalitySection.astro";
+import SectionTeaser from "../components/SectionTeaser.astro";
+import CloseOut from "../components/CloseOut.astro";
+import { security } from "../content/security";
+import { architecture } from "../content/architecture";
+import { pageSeo } from "../content/seo";
+---
+
+<Layout title={pageSeo.home.title} description={pageSeo.home.description}>
+  <Hero />
+  <section id="surfaces">
+    <SurfacesSection />
+  </section>
+  <section id="functionality">
+    <FunctionalitySection />
+  </section>
+  <section id="security">
+    <SectionTeaser
+      heading={security.heading}
+      body={security.teaser}
+      href="/security/"
+      linkLabel="Read the security posture →"
+      testid="security-teaser"
+    />
+  </section>
+  <section id="architecture">
+    <SectionTeaser
+      heading={architecture.heading}
+      body={architecture.teaser}
+      href="/architecture/"
+      linkLabel="Read the architecture →"
+      testid="architecture-teaser"
+    />
+  </section>
+  <section id="close-out">
+    <CloseOut />
+  </section>
+</Layout>

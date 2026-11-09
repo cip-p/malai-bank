@@ -1,0 +1,4 @@
+#
+#Fri May 22 14:42:16 BST 2026
+classes\ that\ declare\ a\ @PostMapping/@PutMapping/@PatchMapping/@DeleteMapping\ method\ should\ reach\ AuditWriter\ via\ the\ constructor\ (transitively,\ depth\ <\=\ 3),\ because\ BACK-05\ /\ D-2.11\:\ every\ mutating\ endpoint\ must\ have\ access\ to\ the\ audit\ log\ via\ its\ bean\ graph=45d1f81e-f649-42e3-adee-71d58af7c965
+no\ classes\ that\ reside\ in\ a\ package\ 'com.malai.payments..'\ should\ depend\ on\ classes\ that\ reside\ in\ another\ com.malai.*\ domain\ (not\ in\ com.malai.payments\ or\ a\ shared\ root),\ because\ BACK-02\ /\ D-2.2\:\ cross-module\ integration\ must\ go\ through\ the\ malai-{domain}-client\ modules;\ com.malai.payments\ must\ not\ reach\ into\ other\ services'\ internals=17abdcc6-f363-4a67-aa87-31dfcdf27b26

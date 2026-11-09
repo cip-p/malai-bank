@@ -1,0 +1,447 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-15T18:28:08Z",
+  "title": "Design System: Malai",
+  "extensions": {
+    "colorMeta": {
+      "bank-ink": {
+        "role": "primary",
+        "displayName": "Bank Ink",
+        "canonical": "#0b1e3a",
+        "tonalRamp": [
+          "#07132a",
+          "#0b1e3a",
+          "#122a4f",
+          "#1c3a6a",
+          "#2a4d85",
+          "#5a78a8",
+          "#9fb3cf",
+          "#e6ecf5"
+        ]
+      },
+      "bank-ink-hover": {
+        "role": "primary",
+        "displayName": "Bank Ink Hover",
+        "canonical": "#1c3a6a",
+        "tonalRamp": [
+          "#07132a",
+          "#0b1e3a",
+          "#122a4f",
+          "#1c3a6a",
+          "#2a4d85",
+          "#5a78a8",
+          "#9fb3cf",
+          "#e6ecf5"
+        ]
+      },
+      "bank-ink-outline": {
+        "role": "primary",
+        "displayName": "Bank Ink Outline",
+        "canonical": "#2a4d85",
+        "tonalRamp": [
+          "#07132a",
+          "#0b1e3a",
+          "#122a4f",
+          "#1c3a6a",
+          "#2a4d85",
+          "#5a78a8",
+          "#9fb3cf",
+          "#e6ecf5"
+        ]
+      },
+      "bank-ink-wash": {
+        "role": "primary",
+        "displayName": "Bank Ink Wash",
+        "canonical": "#f3f6fb",
+        "tonalRamp": [
+          "#07132a",
+          "#0b1e3a",
+          "#122a4f",
+          "#1c3a6a",
+          "#2a4d85",
+          "#9fb3cf",
+          "#e6ecf5",
+          "#f3f6fb"
+        ]
+      },
+      "bank-ink-selection": {
+        "role": "primary",
+        "displayName": "Bank Ink Selection",
+        "canonical": "#e6ecf5",
+        "tonalRamp": [
+          "#07132a",
+          "#0b1e3a",
+          "#122a4f",
+          "#1c3a6a",
+          "#2a4d85",
+          "#5a78a8",
+          "#9fb3cf",
+          "#e6ecf5"
+        ]
+      },
+      "verified-green": {
+        "role": "secondary",
+        "displayName": "Verified Green",
+        "canonical": "#0f6b54",
+        "tonalRamp": [
+          "#063429",
+          "#0a5343",
+          "#0f6b54",
+          "#16855c",
+          "#3aa07a",
+          "#7cc4a5",
+          "#b9e0cf",
+          "#e6f4ee"
+        ]
+      },
+      "verified-green-deep": {
+        "role": "secondary",
+        "displayName": "Verified Green Deep",
+        "canonical": "#0a5343",
+        "tonalRamp": [
+          "#063429",
+          "#0a5343",
+          "#0f6b54",
+          "#16855c",
+          "#3aa07a",
+          "#7cc4a5",
+          "#b9e0cf",
+          "#e6f4ee"
+        ]
+      },
+      "verified-green-focus": {
+        "role": "secondary",
+        "displayName": "Verified Green Focus",
+        "canonical": "#16855c",
+        "tonalRamp": [
+          "#063429",
+          "#0a5343",
+          "#0f6b54",
+          "#16855c",
+          "#3aa07a",
+          "#7cc4a5",
+          "#b9e0cf",
+          "#e6f4ee"
+        ]
+      },
+      "verified-green-wash": {
+        "role": "secondary",
+        "displayName": "Verified Green Wash",
+        "canonical": "#e6f4ee",
+        "tonalRamp": [
+          "#063429",
+          "#0a5343",
+          "#0f6b54",
+          "#16855c",
+          "#3aa07a",
+          "#7cc4a5",
+          "#b9e0cf",
+          "#e6f4ee"
+        ]
+      },
+      "warm-white": {
+        "role": "neutral",
+        "displayName": "Warm White",
+        "canonical": "#fafaf7",
+        "tonalRamp": [
+          "#2b2a26",
+          "#4d4b45",
+          "#7a776e",
+          "#a8a59a",
+          "#cfccc2",
+          "#e6e4db",
+          "#f3f1ea",
+          "#fafaf7"
+        ]
+      },
+      "warm-paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#f3f1ea",
+        "tonalRamp": [
+          "#2a2823",
+          "#4a4740",
+          "#75716a",
+          "#a29e94",
+          "#c8c4b9",
+          "#e3e0d6",
+          "#f3f1ea",
+          "#faf9f4"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#14171f",
+        "tonalRamp": [
+          "#0a0c11",
+          "#14171f",
+          "#262a35",
+          "#3b404e",
+          "#5b6478",
+          "#8b93a5",
+          "#c2c7d1",
+          "#eceef2"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#5b6478",
+        "tonalRamp": [
+          "#1f2530",
+          "#2f3745",
+          "#414a5b",
+          "#5b6478",
+          "#7a8397",
+          "#9ea6b6",
+          "#c6cbd5",
+          "#eceef2"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Ink Faint",
+        "canonical": "#636c7f",
+        "tonalRamp": [
+          "#222834",
+          "#333b4a",
+          "#474f60",
+          "#636c7f",
+          "#808898",
+          "#a3aab8",
+          "#c9cdd6",
+          "#eef0f3"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#e4e6eb",
+        "tonalRamp": [
+          "#3a3d45",
+          "#5d616b",
+          "#858a95",
+          "#aab0b9",
+          "#c8ccd3",
+          "#d8dbe1",
+          "#e4e6eb",
+          "#f4f5f7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The page h1. Steps 2.25rem to 3rem at sm to 3.75rem at md; line-height 1.05 then 1.1. Capped at 48rem wide."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section h2. Steps to 2.25rem at sm. Preceded by an eyebrow on deep pages."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card h3 and h4, and uppercase category headings. Panel titles step to 1.25rem."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The paragraph under every headline. Steps to 1.25rem in heroes at sm. Ink Muted."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Card copy and evidence detail at 0.875rem. Long-form prose on About, Privacy and Terms uses 1rem."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Button labels and standalone links. Header and About CTA buttons drop to 0.875rem."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase eyebrow above a headline, Verified Green. Sub-labels drop to 500 weight and 0.025em tracking in Ink Faint; evidence kickers are 10px at 0.14em."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Stat values in the four-cell strips, steps to 1.25rem at sm. Also the 404 code and screenshot chrome URL."
+      }
+    },
+    "shadows": [
+      {
+        "name": "frame",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Screenshot frames and the open mobile menu panel only. Nothing else casts a shadow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transition-colors",
+        "value": "color, background-color, border-color, text-decoration-color, fill, stroke 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "The only transition on the site: button fills, link colours and card borders on hover."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Bank Ink fill for the demo CTA and page-level calls to action; hover lightens the fill, nothing moves.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Try the demo →</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; background: var(--color-navy-950, #0b1e3a); color: var(--color-warm-white, #fafaf7); font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 1rem; font-weight: 500; line-height: 1.5; padding: 12px 20px; border-radius: 6px; text-decoration: none; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: var(--color-navy-800, #1c3a6a); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-accent-500, #16855c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Warm White with a hairline for the secondary action beside every primary; hover darkens the border.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">Talk to us</a>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; background: var(--color-warm-white, #fafaf7); color: var(--color-navy-950, #0b1e3a); border: 1px solid var(--color-rule, #e4e6eb); font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 1rem; font-weight: 500; line-height: 1.5; padding: 12px 20px; border-radius: 6px; text-decoration: none; transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { border-color: var(--color-navy-700, #2a4d85); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-accent-500, #16855c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Inline Link",
+      "kind": "custom",
+      "refersTo": "link-inline",
+      "description": "Verified Green standalone link with a trailing arrow in the copy; hover deepens the green.",
+      "html": "<a class=\"ds-link\" href=\"#\">Read the security posture →</a>",
+      "css": ".ds-link { display: inline-flex; align-items: center; color: var(--color-accent-600, #0f6b54); font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 1rem; font-weight: 500; text-decoration: none; transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-link:hover { color: var(--color-accent-700, #0a5343); text-decoration: underline; text-underline-offset: 3px; } .ds-link:focus-visible { outline: 2px solid var(--color-accent-500, #16855c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Eyebrow and Headline",
+      "kind": "custom",
+      "refersTo": "eyebrow",
+      "description": "The uppercase Verified Green label, headline and lede that open every section.",
+      "html": "<div class=\"ds-section-head\"><p class=\"ds-eyebrow\">Security</p><h2 class=\"ds-headline\">Built for the security review</h2><p class=\"ds-lede\">Standards-language claims with the evidence sitting beside each.</p></div>",
+      "css": ".ds-section-head { max-width: 48rem; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; } .ds-eyebrow { margin: 0; color: var(--color-accent-600, #0f6b54); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; } .ds-headline { margin: 12px 0 0; color: var(--color-navy-950, #0b1e3a); font-size: 1.875rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.025em; } .ds-lede { margin: 24px 0 0; color: var(--color-ink-muted, #5b6478); font-size: 1.125rem; line-height: 1.625; }"
+    },
+    {
+      "name": "Evidence Card",
+      "kind": "card",
+      "refersTo": "card-paper",
+      "description": "The trust-ledger entry: claim, detail, then a hairline and an evidence footer whose kicker names the kind of proof.",
+      "html": "<article class=\"ds-evidence-card\"><h4 class=\"ds-evidence-claim\">Append-only audit</h4><p class=\"ds-evidence-detail\">Every ledger event is appended to a hash-chained, tamper-evident log. Replaying the chain reproduces the balance.</p><div class=\"ds-evidence-footer\"><span class=\"ds-evidence-kicker\">Reference</span><a class=\"ds-evidence-link\" href=\"#\">Read how the decision record works</a></div></article>",
+      "css": ".ds-evidence-card { display: flex; flex-direction: column; background: var(--color-warm-paper, #f3f1ea); border: 1px solid var(--color-rule, #e4e6eb); border-radius: 8px; padding: 24px; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-evidence-card:hover { border-color: var(--color-navy-700, #2a4d85); } .ds-evidence-claim { margin: 0; color: var(--color-navy-950, #0b1e3a); font-size: 1rem; font-weight: 600; letter-spacing: -0.025em; } .ds-evidence-detail { margin: 12px 0 0; color: var(--color-ink, #14171f); font-size: 0.875rem; line-height: 1.625; } .ds-evidence-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-rule, #e4e6eb); } .ds-evidence-kicker { display: block; margin-bottom: 4px; color: var(--color-ink-muted, #5b6478); font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; } .ds-evidence-link { color: var(--color-accent-600, #0f6b54); font-size: 0.75rem; font-weight: 500; text-decoration: none; } .ds-evidence-link:hover { color: var(--color-accent-700, #0a5343); text-decoration: underline; text-underline-offset: 3px; }"
+    },
+    {
+      "name": "Capability Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Warm White reading unit with a title, claim and proof link; the grid workhorse on the home page.",
+      "html": "<article class=\"ds-card\"><h3 class=\"ds-card-title\">Confirmation of Payee</h3><p class=\"ds-card-body\">Every new payee is name-checked against the receiving bank before any money leaves the account.</p><a class=\"ds-card-link\" href=\"#\">Watch the name-match resolve in step 3 of the walkthrough</a></article>",
+      "css": ".ds-card { display: flex; flex-direction: column; background: var(--color-warm-white, #fafaf7); border: 1px solid var(--color-rule, #e4e6eb); border-radius: 8px; padding: 24px; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-card:hover { border-color: var(--color-navy-700, #2a4d85); } .ds-card-title { margin: 0; color: var(--color-navy-950, #0b1e3a); font-size: 1rem; font-weight: 600; letter-spacing: -0.025em; } .ds-card-body { flex-grow: 1; margin: 12px 0 0; color: var(--color-ink-muted, #5b6478); font-size: 0.875rem; line-height: 1.625; } .ds-card-link { display: inline-flex; margin-top: 16px; color: var(--color-accent-600, #0f6b54); font-size: 0.875rem; font-weight: 500; text-decoration: none; } .ds-card-link:hover { color: var(--color-accent-700, #0a5343); }"
+    },
+    {
+      "name": "Stat Strip",
+      "kind": "custom",
+      "refersTo": "stat-cell",
+      "description": "Four monospace figures in one ruled container with 1px gutters; opens every deep page.",
+      "html": "<dl class=\"ds-stats\"><div class=\"ds-stat\"><dt>Minimum at every edge</dt><dd>TLS 1.2+</dd></div><div class=\"ds-stat\"><dt>1-year max-age</dt><dd>HSTS preload</dd></div><div class=\"ds-stat\"><dt>Plus IP reputation</dt><dd>OWASP CRS</dd></div><div class=\"ds-stat\"><dt>No shared secret</dt><dd>Per-task identity</dd></div></dl>",
+      "css": ".ds-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; overflow: hidden; background: var(--color-rule, #e4e6eb); border: 1px solid var(--color-rule, #e4e6eb); border-radius: 8px; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; } @media (min-width: 640px) { .ds-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } } .ds-stat { display: flex; flex-direction: column; gap: 4px; background: var(--color-warm-white, #fafaf7); padding: 24px 20px; } .ds-stat dt { color: var(--color-ink-muted, #5b6478); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.025em; line-height: 1.375; text-transform: uppercase; } .ds-stat dd { margin: 0; color: var(--color-navy-950, #0b1e3a); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 1.125rem; font-weight: 600; line-height: 1.25; }"
+    },
+    {
+      "name": "Category Header",
+      "kind": "custom",
+      "refersTo": "icon-tile",
+      "description": "Verified Green Wash icon tile beside an uppercase title, with a hairline running level with it across the remaining width.",
+      "html": "<header class=\"ds-category\"><div class=\"ds-category-lead\"><div class=\"ds-category-row\"><span class=\"ds-icon-tile\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 2.25a.75.75 0 0 1 .53.22l7.5 3a.75.75 0 0 1 .47.7v5.08c0 5.18-3.6 9.62-8 10.5-4.4-.88-8-5.32-8-10.5V6.17a.75.75 0 0 1 .47-.7l7.5-3a.75.75 0 0 1 .53-.22Z M9.75 12.5l1.75 1.75 3.5-3.5\"/></svg></span><h3 class=\"ds-category-title\">Identity &amp; access</h3></div><p class=\"ds-category-blurb\">Who can speak to the system, how their tokens are minted, and what stops a stolen credential going anywhere.</p></div><div class=\"ds-category-rule\"></div></header>",
+      "css": ".ds-category { display: grid; grid-template-columns: 1fr; gap: 16px; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; } @media (min-width: 768px) { .ds-category { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 32px; } .ds-category-lead { grid-column: span 4; } .ds-category-rule { display: block; grid-column: span 8; } } .ds-category-row { display: flex; align-items: center; gap: 12px; } .ds-icon-tile { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 6px; background: var(--color-accent-50, #e6f4ee); color: var(--color-accent-700, #0a5343); } .ds-icon-tile svg { width: 20px; height: 20px; } .ds-category-title { margin: 0; color: var(--color-navy-950, #0b1e3a); font-size: 1rem; font-weight: 600; letter-spacing: -0.025em; text-transform: uppercase; } .ds-category-blurb { margin: 12px 0 0; color: var(--color-ink-muted, #5b6478); font-size: 0.875rem; line-height: 1.625; } .ds-category-rule { display: none; height: 1px; width: 100%; transform: translateY(16px); background: var(--color-rule, #e4e6eb); }"
+    },
+    {
+      "name": "Screenshot Frame",
+      "kind": "custom",
+      "refersTo": "screenshot-frame",
+      "description": "A small browser window for product screenshots: paper title bar, three translucent dots, optional monospace URL. The only shadowed element.",
+      "html": "<figure class=\"ds-frame\"><div class=\"ds-frame-bar\" aria-hidden=\"true\"><span class=\"ds-dot ds-dot-red\"></span><span class=\"ds-dot ds-dot-amber\"></span><span class=\"ds-dot ds-dot-green\"></span><span class=\"ds-frame-url\">app.malaibank.com/accounts</span></div><div class=\"ds-frame-body\"></div></figure>",
+      "css": ".ds-frame { margin: 0; overflow: hidden; background: var(--color-warm-white, #fafaf7); border: 1px solid var(--color-rule, #e4e6eb); border-radius: 8px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-frame-bar { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--color-warm-paper, #f3f1ea); border-bottom: 1px solid var(--color-rule, #e4e6eb); } .ds-dot { width: 6px; height: 6px; border-radius: 9999px; } .ds-dot-red { background: rgb(248 113 113 / 0.7); } .ds-dot-amber { background: rgb(251 191 36 / 0.7); } .ds-dot-green { background: rgb(52 211 153 / 0.7); } .ds-frame-url { margin-left: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--color-ink-faint, #636c7f); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9px; } .ds-frame-body { aspect-ratio: 16 / 9; width: 100%; background: linear-gradient(var(--color-warm-paper, #f3f1ea), var(--color-warm-white, #fafaf7)); }"
+    },
+    {
+      "name": "Site Header",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Sticky 56px bar on translucent warm white with a hairline: mark and wordmark, centre links, compact primary button.",
+      "html": "<header class=\"ds-header\"><nav class=\"ds-header-inner\"><a class=\"ds-wordmark\" href=\"#\"><svg viewBox=\"0 0 32 32\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" fill=\"currentColor\" d=\"M16 3.5 26.5 7.5V15c0 6.8-4.3 11.4-10.5 13.5C9.8 26.4 5.5 21.8 5.5 15V7.5Zm0 7a2.6 2.6 0 0 1 1.1 4.96L18.5 21h-5l1.4-5.54A2.6 2.6 0 0 1 16 10.5Z\"/></svg><span>Malai</span></a><ul class=\"ds-nav\"><li><a href=\"#\">Operations</a></li><li><a href=\"#\">Executive</a></li><li><a href=\"#\" aria-current=\"page\">Architecture</a></li><li><a href=\"#\">Security</a></li></ul><a class=\"ds-header-cta\" href=\"#\">Try the demo →</a></nav></header>",
+      "css": ".ds-header { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--color-warm-white, #fafaf7) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--color-rule, #e4e6eb); font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; } .ds-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; height: 56px; max-width: 72rem; margin: 0 auto; padding: 0 24px; } .ds-wordmark { display: flex; align-items: center; gap: 8px; color: var(--color-navy-950, #0b1e3a); font-size: 1.125rem; font-weight: 600; letter-spacing: -0.025em; text-decoration: none; } .ds-wordmark svg { width: 16px; height: 16px; color: var(--color-accent-600, #0f6b54); } .ds-nav { display: flex; align-items: center; gap: 24px; margin: 0; padding: 0; list-style: none; } .ds-nav a { color: var(--color-ink-muted, #5b6478); font-size: 0.875rem; text-decoration: none; transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-nav a:hover, .ds-nav a[aria-current='page'] { color: var(--color-navy-950, #0b1e3a); } .ds-nav a[aria-current='page'] { font-weight: 500; } .ds-header-cta { display: inline-flex; align-items: center; background: var(--color-navy-950, #0b1e3a); color: var(--color-warm-white, #fafaf7); font-size: 0.875rem; font-weight: 500; padding: 8px 14px; border-radius: 6px; text-decoration: none; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-header-cta:hover { background: var(--color-navy-800, #1c3a6a); } .ds-header-cta:focus-visible, .ds-nav a:focus-visible { outline: 2px solid var(--color-accent-500, #16855c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Mobile Nav Row",
+      "kind": "nav",
+      "refersTo": "mobile-nav-item",
+      "description": "Stacked paper rows under the header below lg; the active row takes a navy wash and Verified Green text.",
+      "html": "<ul class=\"ds-mobile-nav\"><li><a href=\"#\"><span>Operations</span><svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 5l5 5-5 5\"/></svg></a></li><li><a href=\"#\" aria-current=\"page\"><span>Security</span><svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 5l5 5-5 5\"/></svg></a></li></ul>",
+      "css": ".ds-mobile-nav { margin: 0; padding: 0; list-style: none; background: var(--color-warm-paper, #f3f1ea); border-top: 1px solid var(--color-rule, #e4e6eb); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; } .ds-mobile-nav li + li { border-top: 1px solid var(--color-rule, #e4e6eb); } .ds-mobile-nav a { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; color: var(--color-navy-950, #0b1e3a); font-size: 1rem; font-weight: 500; text-decoration: none; transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1), background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-mobile-nav a:hover, .ds-mobile-nav a[aria-current='page'] { background: var(--color-navy-50, #f3f6fb); color: var(--color-accent-600, #0f6b54); } .ds-mobile-nav svg { width: 16px; height: 16px; color: var(--color-ink-faint, #636c7f); } .ds-mobile-nav a:focus-visible { outline: 2px solid var(--color-accent-500, #16855c); outline-offset: -2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Due-Diligence Room",
+    "overview": "A quiet, well-lit room where a buyer reads the file. The page is warm paper, the words are bank ink, and one green stamp marks the places where a claim is backed by evidence or a link leads to proof. Nothing decorates. The visual system exists so that a bank executive or platform lead can read, check, and decide without being sold to, and so that code, diagrams and product screenshots feel native rather than pasted in. This is the builder-confident neutral register recorded in ADR-0002: it is deliberately not an institutional serif-and-navy bank site and not a consumer-fintech gradient site.\n\nThe mood is calm, exact, evidenced, unhurried. Density is moderate: generous section spacing, a single content column that never exceeds 1152px, prose capped at roughly 48rem, and cards that hold one claim each. Depth is tonal and hairline, not shadowed. Motion is limited to colour transitions; nothing lifts, glows or bounces. Real screenshots of the demo carry the visual load where a marketing site would normally reach for illustration or stock photography.",
+    "keyCharacteristics": [
+      "Warm-white ground with warm-paper panels; navy ink, never pure black, for every heading",
+      "One accent, Verified Green, reserved for eyebrows, links, the mark and evidence references",
+      "Hairline rules do the structural work: borders, dividers, and the 1px gutters of the stat strip",
+      "System sans throughout, with a monospace voice for figures and technical values",
+      "Screenshot frames drawn as small browser windows, the site's only shadowed element",
+      "Flat cards that respond to hover by darkening their border, not by rising"
+    ],
+    "rules": [
+      {
+        "name": "The One Stamp Rule",
+        "body": "Verified Green is used only on eyebrows, links, the mark, focus rings, icon tiles and evidence rules. It never fills a button, a card or a section. Its rarity is what makes an evidence link read as a stamp.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-Not-Black Rule",
+        "body": "Headings are Bank Ink and body text is Ink; pure black appears nowhere on the site. The favicon and Open Graph card use a near-black tile because they live outside the page.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Layer Rule",
+        "body": "Regions are set apart with Warm Paper on Warm White, never with a tinted colour or a gradient. If a third surface colour seems necessary, the layout needs a hairline instead.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Weights Rule",
+        "body": "Text is either 600 (anything that names something) or 400 (anything that explains it), with 500 only for actions and sub-labels. There is no bold, no light, and no italic beyond the pull quote and pending-evidence note.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tight-Up, Wide-Down Rule",
+        "body": "Anything at or above 1rem that acts as a heading is tracked tight; anything at or below 0.75rem that acts as a label is uppercase and tracked wide. Nothing in between is letter-spaced.",
+        "section": "typography"
+      },
+      {
+        "name": "The Window Rule",
+        "body": "Only a screenshot frame may cast a shadow, because it shows something that lives outside this page. Cards, panels, buttons and stat strips never do.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Border-Darkens Rule",
+        "body": "Hover on a card or secondary button is expressed by its hairline changing from Rule to Bank Ink Outline over a colour transition. Nothing translates, scales or gains a shadow on hover.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every heading in Bank Ink at 600 with -0.025em tracking, and every body paragraph in Ink or Ink Muted at 400.",
+      "Do keep Verified Green for eyebrows, links, the mark, focus rings, icon tiles and evidence rules only, per The One Stamp Rule.",
+      "Do give every container a 1px Rule border and an 8px radius, and express hover as the border moving to Bank Ink Outline.",
+      "Do set regions apart with Warm Paper on Warm White and hairlines, never with tinted fills or gradients.",
+      "Do frame every product screenshot in the browser-window frame with real alt text and responsive widths.",
+      "Do pair every claim with an evidence footer, and mark the kind of evidence with the 10px kicker before the text.",
+      "Do put figures, versions and standards names in the monospace face.",
+      "Do keep the reading measure: headlines and ledes in a 48rem block, hero copy in 42rem, inside the 72rem column.",
+      "Do draw a 2px Verified Green Focus outline offset 2px on every interactive element."
+    ],
+    "donts": [
+      "Don't use pure black, a serif face, or a gradient anywhere on the page.",
+      "Don't add shadows to cards, panels, buttons or stat strips; only screenshot frames and the open mobile menu may cast one.",
+      "Don't translate, scale or lift anything on hover; the only motion is a colour transition.",
+      "Don't fill a button, card or section with Verified Green, or use it for body text.",
+      "Don't introduce stock photography or decorative illustration; screenshots and the architecture diagram carry the imagery.",
+      "Don't use bold, light or italic weights beyond the italic pull quote and pending-evidence note.",
+      "Don't use pill buttons, borderless cards or cards nested on a same-colour surface.",
+      "Don't letter-space anything between 0.75rem and 1rem; tight above, wide-uppercase below."
+    ]
+  }
+}

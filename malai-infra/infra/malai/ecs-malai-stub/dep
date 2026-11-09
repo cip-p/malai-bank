@@ -1,0 +1,5 @@
+init
+vpc
+kms
+ecs-malai-api
+ecs-malai-seeder
