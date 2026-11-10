@@ -91,6 +91,8 @@ The backend is tested with [Kensa](https://kensa.dev), a BDD framework where eve
 diagram of every HTTP and message exchange between the services, so a test report doubles as
 documentation of how the bank works.
 
+![Kensa sequence diagram for an end-to-end test: a transfer between a customer's own accounts passes through the payments, OAuth2, account and ledger services](docs/images/kensa-sequence-diagram.png)
+
 The end-to-end suite drives the real `malai-api` and `malai-stub` containers through whole
 journeys:
 
